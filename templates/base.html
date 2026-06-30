@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}KMC Incident Reporting{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="/static/css/app.css">
+</head>
+<body class="app-shell min-h-screen">
+  {% if user.is_authenticated %}
+  <nav class="app-nav sticky top-0 z-40">
+    <div class="app-container app-nav-inner">
+      <a href="{% url 'dashboard' %}" class="app-brand">
+        <span class="app-brand-mark">KMC</span>
+        <span class="app-brand-text">Incident Reporting</span>
+      </a>
+      <div class="nav-links">
+        <a href="{% url 'dashboard' %}" class="nav-link">Dashboard</a>
+        {% if user.can_report %}
+        <a href="{% url 'incident_create' %}" class="nav-link">New incident</a>
+        {% endif %}
+        <a href="{% url 'my_queue' %}" class="nav-link">
+          My queue
+          {% if nav_counts.queue_total %}
+          <span class="queue-badge">{{ nav_counts.queue_total }}</span>
+          {% endif %}
+        </a>
+        {% if user.role == 'ADMIN' %}
+        <a href="{% url 'admin_users' %}" class="nav-link">Users</a>
+        {% endif %}
+        <span class="nav-user">{{ user.full_name }} · {{ user.get_role_display }}</span>
+        <form method="post" action="{% url 'logout' %}">{% csrf_token %}
+          <button type="submit" class="btn-logout">Logout</button>
+        </form>
+      </div>
+    </div>
+  </nav>
+  {% endif %}
+
+  <main class="app-container app-main">
+    {% if nav_counts.queue_alert %}
+    <div class="alert-banner">
+      <span><strong>Action required:</strong> You have {{ nav_counts.queue_alert }} pending item{{ nav_counts.queue_alert|pluralize }} in your queue.</span>
+      <a href="{% url 'my_queue' %}" class="btn-primary btn-sm">View my queue</a>
+    </div>
+    {% endif %}
+    {% if messages %}
+    <div class="flash-stack">
+      {% for message in messages %}
+      <div class="flash-message {% if message.tags == 'error' %}flash-error{% elif message.tags == 'success' %}flash-success{% else %}flash-info{% endif %}">
+        {{ message }}
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

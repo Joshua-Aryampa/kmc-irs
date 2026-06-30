@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+{% load incident_extras %}
+{% block title %}{% if is_create %}New incident{% else %}Edit {{ incident.incident_id|default:"draft" }}{% endif %}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1 class="page-title">{% if is_create %}New incident report{% else %}Edit incident report{% endif %}</h1>
+  <p class="page-subtitle">Complete all required fields before submitting for verification</p>
+</div>
+{% if incident and incident.return_comment %}
+<div class="alert-return">
+  <strong>Return reason — please correct and resubmit:</strong>
+  <p style="margin-top:0.5rem;">{{ incident.return_comment }}</p>
+</div>
+{% endif %}
+
+<form method="post" enctype="multipart/form-data" id="incident-form">
+  {% csrf_token %}
+  {% if form.non_field_errors %}<div class="flash-message flash-error">{{ form.non_field_errors }}</div>{% endif %}
+  {% if formset.non_form_errors %}<div class="flash-message flash-error">{{ formset.non_form_errors }}</div>{% endif %}
+
+  <section class="form-section">
+    <h2>Incident details</h2>
+    <div class="form-grid-2">
+      <div><label class="form-label">Date of incident</label>{{ form.incident_date }}{% if form.incident_date.errors %}<p class="field-error">{{ form.incident_date.errors.0 }}</p>{% endif %}</div>
+      <div><label class="form-label">Time of incident</label>{{ form.incident_time }}{% if form.incident_time.errors %}<p class="field-error">{{ form.incident_time.errors.0 }}</p>{% endif %}</div>
+      <div class="span-full"><label class="form-label">Scene location</label>{{ form.scene_location }}{% if form.scene_location.errors %}<p class="field-error">{{ form.scene_location.errors.0 }}</p>{% endif %}</div>
+    </div>
+    <div class="form-block">
+      <p class="section-lead">Involves (select one or more)</p>
+      <div class="choice-grid-4">
+        <label class="choice-label">{{ form.involves_person }} Person(s)</label>
+        <label class="choice-label">{{ form.involves_product }} Product(s)</label>
+        <label class="choice-label">{{ form.involves_premises }} Premises</label>
+        <label class="choice-label">{{ form.involves_property }} Property</label>
+      </div>
+    </div>
+
+    {% for key, group in involve_groups.items %}
+    <div class="form-block involve-group hidden" data-involve-field="{{ group.field }}" id="classifications-{{ key }}">
+      <p class="section-lead">{{ group.label }} — classification</p>
+      <div class="choice-grid-3">
+        {% for field_name, label in group.classifications %}
+        <label class="choice-label">{{ form|get_item:field_name }} {{ label }}</label>
+        {% endfor %}
+        <label class="choice-label">{{ form|get_item:group.other_bool }} Others</label>
+      </div>
+      <div class="form-block other-text-wrap hidden">{{ form|get_item:group.other_text }}</div>
+    </div>
+    {% endfor %}
+
+    <div class="form-block"><label class="form-label">Description</label>{{ form.description }}{% if form.description.errors %}<p class="field-error">{{ form.description.errors.0 }}</p>{% endif %}</div>
+  </section>
+
+  <section class="form-section">
+    <h2>Analysis & response</h2>
+    <div class="form-stack">
+      <div><label class="form-label">Possible causes</label>{{ form.possible_causes }}</div>
+      <div><label class="form-label">Corrective actions taken</label>{{ form.corrective_actions_taken }}</div>
+      <div><label class="form-label">Immediate actions</label>{{ form.immediate_actions }}</div>
+      <div><label class="form-label">Effect on the process</label>{{ form.effect_on_process }}</div>
+      <div><label class="form-label">Recommendations</label>{{ form.recommendations }}</div>
+    </div>
+  </section>
+
+  <section class="form-section">
+    <div class="section-header-row">
+      <h2 class="mb-0">Witnesses</h2>
+      <button type="button" id="add-witness-btn" class="btn-secondary btn-sm">Add witness</button>
+    </div>
+    {{ formset.management_form }}
+    <div id="witness-forms">
+      {% for f in formset %}
+      <div class="witness-row form-grid-2 border-b" data-form-index="{{ forloop.counter0 }}">
+        {% for hidden in f.hidden_fields %}{{ hidden }}{% endfor %}
+        <div><label class="form-label">Name</label>{{ f.name }}{% if f.name.errors %}<p class="field-error">{{ f.name.errors.0 }}</p>{% endif %}</div>
+        <div><label class="form-label">Designation</label>{{ f.designation }}{% if f.designation.errors %}<p class="field-error">{{ f.designation.errors.0 }}</p>{% endif %}</div>
+        <div class="span-full witness-remove-wrap {% if forloop.first %}hidden{% endif %}">
+          {% if f.DELETE %}<label class="choice-label btn-danger-text">{{ f.DELETE }} Remove witness</label>{% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    <template id="witness-empty-form">
+      <div class="witness-row form-grid-2 border-b" data-form-index="__prefix__">
+        {% with f=formset.empty_form %}
+        {% for hidden in f.hidden_fields %}{{ hidden }}{% endfor %}
+        <div><label class="form-label">Name</label>{{ f.name }}</div>
+        <div><label class="form-label">Designation</label>{{ f.designation }}</div>
+        <div class="span-full"><button type="button" class="remove-witness-btn btn-danger-text btn-sm" style="background:none;border:none;padding:0;cursor:pointer;">Remove witness</button></div>
+        {% endwith %}
+      </div>
+    </template>
+  </section>
+
+  <section class="form-section">
+    <h2>Photos (1–10 required on submit, max 5 MB each)</h2>
+    {% if incident %}
+    <div class="photo-grid photo-grid-form" style="margin-bottom:1rem;">
+      {% for photo in incident.photos.all %}
+      <div class="photo-thumb">
+        <img src="{{ photo.image.url }}" alt="Photo" style="height:5.5rem;">
+        <a href="{% url 'photo_delete' incident.pk photo.pk %}" class="link-primary" style="display:block;text-align:center;font-size:var(--text-xs);padding:0.375rem;background:#f8fafc;">Remove</a>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+    <div class="page-actions" style="margin-bottom:0.75rem;">
+      <button type="button" id="add-photo-btn" class="btn-secondary btn-sm">Add photos</button>
+      <span id="photo-count-hint" style="font-size:var(--text-xs);color:var(--text-muted);"></span>
+    </div>
+    <input type="file" name="photos" id="photo-input" multiple accept="image/jpeg,image/png,image/webp" class="hidden">
+    <div id="photo-previews" class="photo-grid photo-grid-form"></div>
+    <p id="photo-limit-msg" class="field-error hidden"></p>
+  </section>
+
+  <section class="form-section">
+    <h2>Declaration</h2>
+    <p style="font-size:var(--text-sm);margin-bottom:1rem;line-height:1.5;">
+      I, <strong>{{ user.full_name }}</strong>, <strong>{{ user.designation }}</strong>,
+      confirm this report is accurate to the best of my knowledge.
+    </p>
+    <div id="late-reason" style="display:none">
+      <label class="form-label" style="color:#92400e;">Reason for delay (required if submitting more than {{ late_minutes }} minutes after incident time)</label>
+      {{ form.late_reason }}
+      <p id="late-reason-error" class="field-error hidden" role="alert"></p>
+    </div>
+    <div class="choice-label" style="margin-top:1rem;">
+      {{ form.confirm }}
+      <label for="{{ form.confirm.id_for_label }}">I confirm the above declaration</label>
+    </div>
+  </section>
+
+  <div class="form-actions">
+    <button type="submit" name="action" value="draft" class="btn-secondary">Save draft</button>
+    <button type="submit" name="action" value="submit" class="btn-primary">Submit Report</button>
+    <a href="{% url 'dashboard' %}" class="btn-secondary">Cancel</a>
+  </div>
+</form>
+
+<script>
+  window.INCIDENT_FORM = {
+    involveFields: {
+      {% for key, group in involve_groups.items %}
+      "{{ group.field }}": "{{ group.other_bool }}",
+      {% endfor %}
+    },
+    witnessPrefix: "{{ formset.prefix }}",
+    maxPhotos: 10,
+    existingPhotoCount: {% if incident %}{{ incident.photos.count }}{% else %}0{% endif %},
+    lateMinutes: {{ late_minutes }},
+  };
+</script>
+<script src="/static/js/incident-form.js"></script>
+{% endblock %}

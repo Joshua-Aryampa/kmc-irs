@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — KMC IRS{% endblock %}
+{% block content %}
+<div class="page-header page-header--center">
+  <div>
+    <h1 class="page-title">Dashboard</h1>
+    <p class="page-subtitle">Overview of incidents across your scope</p>
+  </div>
+  {% if user.can_report %}
+  <div class="page-actions">
+    <a href="{% url 'incident_create' %}" class="btn-primary">Report incident</a>
+  </div>
+  {% endif %}
+</div>
+
+<div class="stat-strip">
+  <div class="stat-strip__item"><div class="stat-value">{{ summary.open }}</div><div class="stat-label">Open</div></div>
+  <div class="stat-strip__item stat-card--closed"><div class="stat-value">{{ summary.closed }}</div><div class="stat-label">Closed</div></div>
+  <div class="stat-strip__item"><div class="stat-value">{{ summary.pending_verification }}</div><div class="stat-label">Pending verify</div></div>
+  <div class="stat-strip__item"><div class="stat-value">{{ summary.pending_approval }}</div><div class="stat-label">Pending approve</div></div>
+  <div class="stat-strip__item stat-card--late"><div class="stat-value">{{ summary.late }}</div><div class="stat-label">Late</div></div>
+</div>
+
+<form method="get" id="dashboard-filters" class="filter-panel">
+  <div class="filter-panel__row">
+    <div class="filter-field">
+      <label class="form-label form-label--compact">Status</label>
+      <select name="status" class="input-field input-field--compact">
+        <option value="">All</option>
+        {% for val, label in statuses %}
+        <option value="{{ val }}" {% if filters.status == val %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="filter-field">
+      <label class="form-label form-label--compact">Location</label>
+      <select name="location" class="input-field input-field--compact">
+        <option value="">All</option>
+        {% for loc in locations %}
+        <option value="{{ loc.id }}" {% if filters.location == loc.id|stringformat:'s' %}selected{% endif %}>{{ loc.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="filter-field">
+      <label class="form-label form-label--compact">Severity</label>
+      <select name="severity" class="input-field input-field--compact">
+        <option value="">All</option>
+        {% for val, label in severities %}
+        <option value="{{ val }}" {% if filters.severity == val %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="filter-field filter-field--date">
+      <label class="form-label form-label--compact">From</label>
+      <input type="date" name="date_from" value="{{ filters.date_from }}" class="input-field input-field--compact">
+    </div>
+    <div class="filter-field filter-field--date">
+      <label class="form-label form-label--compact">To</label>
+      <input type="date" name="date_to" value="{{ filters.date_to }}" class="input-field input-field--compact">
+    </div>
+    <div class="filter-field filter-field--check">
+      <label class="filter-checkbox"><input type="checkbox" name="late" value="1" {% if filters.late == '1' %}checked{% endif %} class="checkbox-field"> Late</label>
+    </div>
+    <div class="filter-field filter-field--actions">
+      <a href="{% url 'dashboard' %}" class="btn-secondary btn-sm">Reset</a>
+      <button type="submit" name="export" value="csv" class="btn-secondary btn-sm">Export</button>
+    </div>
+  </div>
+  <p class="filter-hint">Filters apply automatically on change</p>
+</form>
+
+<script src="/static/js/dashboard-filters.js"></script>
+
+<div class="form-section incident-list">
+  {% for inc in incidents %}
+  <a href="{% url 'incident_detail' inc.pk %}" class="incident-card">
+    <div class="incident-card__head">
+      <span class="incident-card__id">{{ inc.incident_id|default:"Draft" }}</span>
+      <span class="status-badge status-{{ inc.status }}">{{ inc.get_status_display }}</span>
+    </div>
+    <dl class="incident-card__attrs">
+      <div class="incident-card__attr">
+        <dt>Location</dt>
+        <dd title="{{ inc.scene_location|default:'—' }}">{{ inc.scene_location|default:"—" }}</dd>
+      </div>
+      <div class="incident-card__attr">
+        <dt>Date</dt>
+        <dd>{{ inc.incident_date|default:"—" }}</dd>
+      </div>
+      <div class="incident-card__attr">
+        <dt>Severity</dt>
+        <dd>{{ inc.get_severity_display|default:"—" }}</dd>
+      </div>
+      <div class="incident-card__attr">
+        <dt>Reporter</dt>
+        <dd title="{{ inc.reporter.full_name }}">{{ inc.reporter.full_name }}</dd>
+      </div>
+      <div class="incident-card__attr">
+        <dt>Late</dt>
+        <dd>{% if inc.is_late_submission %}<span class="incident-late-yes">Yes</span>{% else %}No{% endif %}</dd>
+      </div>
+    </dl>
+  </a>
+  {% empty %}
+  <p class="empty-state">No incidents found.</p>
+  {% endfor %}
+</div>
+{% endblock %}

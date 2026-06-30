@@ -1,0 +1,12 @@
+{% if items %}
+<ul class="form-stack">
+  {% for inc in items %}
+  <li class="queue-item">
+    <a href="{% url 'incident_detail' inc.pk %}" class="link-primary">{{ inc.incident_id|default:"Draft" }}</a>
+    <div class="queue-item-meta">{{ inc.scene_location }} · {{ inc.incident_date }} · {{ inc.get_severity_display }}</div>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="empty-state">No items.</p>
+{% endif %}

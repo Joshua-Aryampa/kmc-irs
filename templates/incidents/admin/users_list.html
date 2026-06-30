@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Users — Admin{% endblock %}
+{% block content %}
+<div class="page-header page-header--center">
+  <div>
+    <h1 class="page-title">User management</h1>
+    <p class="page-subtitle">Create and manage system users</p>
+  </div>
+  <div class="page-actions">
+    <a href="{% url 'admin_user_create' %}" class="btn-primary">Create user</a>
+  </div>
+</div>
+<div class="form-section data-table-wrap">
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th style="width:18%;">Username</th>
+        <th style="width:22%;">Name</th>
+        <th style="width:22%;">Role</th>
+        <th style="width:22%;">Location</th>
+        <th style="width:8%;">Active</th>
+        <th style="width:8%;"></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for u in users %}
+      <tr>
+        <td class="cell-truncate" style="font-weight:600;">{{ u.username }}</td>
+        <td class="cell-truncate">{{ u.full_name }}</td>
+        <td class="cell-truncate">{{ u.get_role_display }}</td>
+        <td class="cell-truncate">{{ u.assigned_location|default:"—" }}</td>
+        <td>{% if u.is_active %}<span style="color:#15803d;font-weight:600;">Yes</span>{% else %}<span style="color:#94a3b8;">No</span>{% endif %}</td>
+        <td><a href="{% url 'admin_user_edit' u.pk %}" class="link-primary">Edit</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

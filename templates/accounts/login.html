@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Login — KMC IRS{% endblock %}
+{% block content %}
+<div class="login-shell">
+  <div class="login-card">
+    <div class="login-brand">
+      <div class="login-brand-icon">KMC</div>
+      <div>
+        <h1>Sign in</h1>
+        <p class="login-tagline">Kiira Vehicle Plant Incident Reporting</p>
+      </div>
+    </div>
+    <form method="post" class="login-form">
+      {% csrf_token %}
+      <label class="form-label">Username</label>
+      <input name="username" type="text" required class="input-field" autofocus>
+      <label class="form-label">Password</label>
+      <input name="password" type="password" required class="input-field">
+      <button type="submit" class="btn-primary btn-block">Login</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Software Requirements Specification — Incident Reporting System</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 2.54cm;
+    }
+    body {
+      font-family: "Times New Roman", Times, serif;
+      font-size: 12pt;
+      line-height: 1.5;
+      text-align: justify;
+      color: #000;
+      max-width: 18cm;
+      margin: 0 auto;
+      padding: 1.5cm;
+    }
+    h1 {
+      font-size: 16pt;
+      font-weight: bold;
+      text-align: center;
+      text-transform: uppercase;
+      margin: 0 0 6pt 0;
+    }
+    h2 {
+      font-size: 14pt;
+      font-weight: bold;
+      margin: 18pt 0 6pt 0;
+      page-break-after: avoid;
+    }
+    h3 {
+      font-size: 12pt;
+      font-weight: bold;
+      margin: 12pt 0 6pt 0;
+      page-break-after: avoid;
+    }
+    h4 {
+      font-size: 12pt;
+      font-weight: bold;
+      font-style: italic;
+      margin: 10pt 0 4pt 0;
+    }
+    p {
+      margin: 0 0 6pt 0;
+    }
+    ul, ol {
+      margin: 0 0 6pt 0;
+      padding-left: 24pt;
+    }
+    li {
+      margin-bottom: 3pt;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 6pt 0 12pt 0;
+      font-size: 10pt;
+      text-align: left;
+    }
+    th, td {
+      border: 1pt solid #000;
+      padding: 4pt 6pt;
+      vertical-align: top;
+    }
+    th {
+      font-weight: bold;
+      background: #f0f0f0;
+    }
+    .cover-meta {
+      text-align: center;
+      margin-bottom: 24pt;
+    }
+    .cover-meta p {
+      text-align: center;
+    }
+    .toc {
+      margin: 18pt 0;
+    }
+    .toc a {
+      color: #000;
+      text-decoration: none;
+    }
+    .req-id {
+      font-weight: bold;
+      white-space: nowrap;
+    }
+    .center {
+      text-align: center;
+    }
+    .page-break {
+      page-break-before: always;
+    }
+    pre, code {
+      font-family: "Courier New", Courier, monospace;
+      font-size: 10pt;
+    }
+    .figure {
+      text-align: center;
+      font-size: 10pt;
+      margin: 12pt 0;
+    }
+  </style>
+</head>
+<body>
+
+<div class="cover-meta">
+  <h1>Software Requirements Specification</h1>
+  <p><strong>Incident Reporting System (IRS)</strong></p>
+  <p>Version 1.0</p>
+  <p>Date: 24 June 2026</p>
+  <p>Status: Baseline — As Built</p>
+  <p>Prepared for: Production Department, Vehicle Manufacturing Plant</p>
+</div>
+
+<table>
+  <tr><th style="width:30%;">Document ID</th><td>IRS-SRS-001</td></tr>
+  <tr><th>Related Documents</th><td>User Acceptance Test Plan (future); System Design Document (future)</td></tr>
+  <tr><th>Classification</th><td>Internal — Production / Information Technology</td></tr>
+  <tr><th>Revision History</th><td>1.0 — Initial release documenting as-built system</td></tr>
+</table>
+
+<h2>Table of Contents</h2>
+<ol class="toc">
+  <li><a href="#sec1">Introduction</a></li>
+  <li><a href="#sec2">Overall Description</a></li>
+  <li><a href="#sec3">System Features and Functional Requirements</a></li>
+  <li><a href="#sec4">External Interface Requirements</a></li>
+  <li><a href="#sec5">Non-Functional Requirements</a></li>
+  <li><a href="#sec6">Data Requirements</a></li>
+  <li><a href="#sec7">Other Requirements</a></li>
+  <li><a href="#sec8">Appendices</a></li>
+</ol>
+
+<h2 id="sec1">1. Introduction</h2>
+
+<h3>1.1 Purpose</h3>
+<p>
+  This Software Requirements Specification (SRS) defines the complete functional and non-functional requirements for the Incident Reporting System (IRS). The document describes the system as implemented and serves as the authoritative reference for acceptance testing, maintenance, training, and future enhancements. Its intended audience includes project stakeholders, quality assurance personnel, developers, system administrators, and end users in supervisory roles.
+</p>
+
+<h3>1.2 Scope</h3>
+<p>
+  The IRS is a web-based application that digitizes the production-line incident reporting form and its multi-stage approval workflow. The system enables authorized personnel to create, submit, verify, approve, reject, and resubmit incident reports; attach photographic evidence; maintain an immutable audit timeline; receive email notifications at workflow transitions; search and filter incidents on a dashboard; export filtered data to CSV; and generate PDF reports for closed incidents. Administrative functions include user provisioning and manual reassignment of verifiers and approvers on open incidents.
+</p>
+<p>
+  The scope of this document covers the application layer delivered as a Django web project. Deployment infrastructure (reverse proxy, TLS certificates, operating system hardening, enterprise identity provider integration) is referenced only where it constrains or interfaces with the application. The IRS does not include shop-floor equipment integration, automated severity alerting by classification, or incident reopening after closure.
+</p>
+
+<h3>1.3 Definitions, Acronyms, and Abbreviations</h3>
+<table>
+  <tr><th>Term</th><th>Definition</th></tr>
+  <tr><td>IRS</td><td>Incident Reporting System — the software product described herein.</td></tr>
+  <tr><td>SRS</td><td>Software Requirements Specification.</td></tr>
+  <tr><td>Reporter</td><td>The user who creates and submits an incident report.</td></tr>
+  <tr><td>Verifier</td><td>The user assigned to review report accuracy and assign severity before approval.</td></tr>
+  <tr><td>Approver</td><td>The user assigned to grant final approval and close the incident.</td></tr>
+  <tr><td>Scene location</td><td>The plant production area where the incident occurred (selected on the report form).</td></tr>
+  <tr><td>Assigned location</td><td>The production area associated with a Supervisor or Shop Floor Manager user account.</td></tr>
+  <tr><td>Late submission</td><td>A report submitted more than the configured threshold after the stated incident date and time.</td></tr>
+  <tr><td>Timeline</td><td>Append-only audit log of workflow events for an incident.</td></tr>
+  <tr><td>Queue</td><td>Role-specific list of incidents awaiting action by the logged-in user.</td></tr>
+  <tr><td>Admin</td><td>Information technology administrator role with user-management and reassignment privileges.</td></tr>
+  <tr><td>CSV</td><td>Comma-separated values file format for tabular export.</td></tr>
+  <tr><td>PDF</td><td>Portable Document Format for printable incident reports.</td></tr>
+</table>
+
+<h3>1.4 References</h3>
+<ul>
+  <li>IEEE Std 830-1998 — Recommended Practice for Software Requirements Specifications (structural guidance).</li>
+  <li>ISO/IEC/IEEE 29148:2018 — Systems and software engineering — Life cycle processes — Requirements engineering (conceptual alignment).</li>
+  <li>Django 5/6 Framework Documentation — https://docs.djangoproject.com/</li>
+  <li>Application source repository — <code>kmc-irs/</code> project directory.</li>
+</ul>
+
+<h3>1.5 Document Overview</h3>
+<p>
+  Section 2 provides contextual description of the product, users, environment, and constraints. Section 3 enumerates detailed functional requirements organized by feature area with unique requirement identifiers. Section 4 describes external interfaces. Section 5 specifies non-functional requirements. Section 6 defines data entities and validation rules. Section 7 covers legal, operational, and administrative requirements. Appendices provide workflow diagrams, routing matrices, and a data dictionary.
+</p>
+
+<h2 id="sec2" class="page-break">2. Overall Description</h2>
+
+<h3>2.1 Product Perspective</h3>
+<p>
+  The IRS is a self-contained web application that replaces paper-based or ad hoc electronic incident reporting for a vehicle manufacturing plant production department. It operates as a centralized system of record for incident data and workflow state. Users interact through standard web browsers on desktop computers, tablets, and mobile phones. The application persists data in a relational database, stores uploaded images on the file system, and sends notifications through a configurable SMTP-compatible email backend.
+</p>
+<p>
+  The system integrates externally only with: (a) an SMTP mail server or console email backend for notifications; (b) a relational database (SQLite for development, PostgreSQL recommended for production); and (c) optional future enterprise identity services (not implemented in the current release; authentication is username/password via Django session management).
+</p>
+
+<h3>2.2 Product Functions — Summary</h3>
+<table>
+  <tr><th>Function Area</th><th>Description</th></tr>
+  <tr><td>Authentication</td><td>Secure login and logout; session-based access control.</td></tr>
+  <tr><td>Incident reporting</td><td>Create, save draft, edit, and submit structured incident reports with witnesses and photos.</td></tr>
+  <tr><td>Workflow</td><td>Route incidents through verification and approval with rejection and return loops.</td></tr>
+  <tr><td>Dashboard</td><td>View, filter, and export incidents within role-based visibility scope.</td></tr>
+  <tr><td>Queue management</td><td>Present role-specific pending work items with notification badges.</td></tr>
+  <tr><td>Audit trail</td><td>Record immutable timeline entries for all state transitions and reassignments.</td></tr>
+  <tr><td>Notifications</td><td>Send email alerts to workflow participants at defined events.</td></tr>
+  <tr><td>Export</td><td>Generate CSV from filtered dashboard data; generate PDF for closed incidents.</td></tr>
+  <tr><td>Administration</td><td>Manage user accounts; reassign verifier or approver on open incidents.</td></tr>
+</table>
+
+<h3>2.3 User Classes and Characteristics</h3>
+<table>
+  <tr><th>Role</th><th>Typical User</th><th>Technical Skill</th><th>Primary Activities</th></tr>
+  <tr><td>Worker</td><td>Production line operator</td><td>Basic web/mobile usage</td><td>Report incidents; correct returned reports</td></tr>
+  <tr><td>Supervisor</td><td>Area supervisor</td><td>Basic to intermediate</td><td>Report incidents; verify worker reports; forward returned items</td></tr>
+  <tr><td>Shop Floor Manager</td><td>Area manager</td><td>Intermediate</td><td>Report incidents; verify; approve; manage queue</td></tr>
+  <tr><td>Director of Production</td><td>Department director</td><td>Intermediate</td><td>Verify and approve escalated incidents plant-wide</td></tr>
+  <tr><td>CEO</td><td>Executive approver</td><td>Basic</td><td>Final approval on manager-reported incidents</td></tr>
+  <tr><td>Admin</td><td>IT administrator</td><td>Advanced</td><td>User provisioning, reassignment, system support</td></tr>
+</table>
+<p>
+  Director of Production and CEO roles cannot create or submit incident reports. All other roles with reporting privilege may act as reporters subject to routing rules in Section 3.4.
+</p>
+
+<h3>2.4 Operating Environment</h3>
+<table>
+  <tr><th>Component</th><th>Requirement</th></tr>
+  <tr><td>Server operating system</td><td>Linux or Windows Server capable of running Python 3.11+</td></tr>
+  <tr><td>Application runtime</td><td>Python 3.11 or newer; Django 5 or 6</td></tr>
+  <tr><td>Database (development)</td><td>SQLite 3 (default)</td></tr>
+  <tr><td>Database (production)</td><td>PostgreSQL 15 or newer (recommended)</td></tr>
+  <tr><td>Client browser</td><td>Modern evergreen browser (Chrome, Edge, Firefox, Safari) on desktop or mobile</td></tr>
+  <tr><td>Network</td><td>HTTP/HTTPS access to application server; outbound SMTP for email</td></tr>
+  <tr><td>Time zone</td><td>Application configured to plant local time (Africa/Kampala in current deployment)</td></tr>
+  <tr><td>File storage</td><td>Writable media directory for uploaded incident photographs</td></tr>
+</table>
+
+<h3>2.5 Design and Implementation Constraints</h3>
+<ul>
+  <li>The application shall be implemented using the Django web framework and server-rendered HTML templates.</li>
+  <li>User interface styling shall use CSS with responsive layout support for mobile and desktop viewports.</li>
+  <li>Authentication shall use Django’s built-in user model extended with role and designation attributes.</li>
+  <li>Workflow state transitions shall be enforced in server-side service logic, not solely in client scripts.</li>
+  <li>Incident identifiers shall be assigned atomically using a year-scoped database sequence to prevent duplication.</li>
+  <li>PDF generation shall use the xhtml2pdf library from HTML templates.</li>
+  <li>Maximum photograph upload size and count shall be enforced server-side via configurable settings.</li>
+</ul>
+
+<h3>2.6 Assumptions and Dependencies</h3>
+<ul>
+  <li>Each production scene location has at least one active Supervisor and one active Shop Floor Manager assigned, or worker-submitted reports cannot be routed.</li>
+  <li>Reporter, verifier, and approver for any given incident are three distinct user accounts.</li>
+  <li>Users possess valid email addresses stored in their profiles for notification delivery.</li>
+  <li>Plant management accepts that closed incidents cannot be reopened through the system.</li>
+  <li>Severity is assigned by the verifier at verification time and is informational; it does not trigger automated alerts.</li>
+  <li>Network connectivity is available at the time of report submission; offline capture is out of scope.</li>
+  <li>IT Admin maintains user accounts and location assignments through the application’s admin interface.</li>
+</ul>
+
+<h2 id="sec3" class="page-break">3. System Features and Functional Requirements</h2>
+<p>
+  Requirements are uniquely identified using the prefix FR (functional requirement). Priority is indicated as Must (mandatory for release), Should (strongly desired), or Could (future enhancement). All requirements listed as Must reflect the as-built system unless explicitly marked otherwise.
+</p>
+
+<h3>3.1 Authentication and Session Management</h3>
+<table>
+  <tr><th>ID</th><th>Priority</th><th>Requirement</th></tr>
+  <tr><td class="req-id">FR-AUTH-001</td><td>Must</td><td>The system shall provide a login page accepting username and password credentials.</td></tr>
+  <tr><td class="req-id">FR-AUTH-002</td><td>Must</td><td>The system shall reject invalid credentials and display an appropriate error without revealing which field failed.</td></tr>
+  <tr><td class="req-id">FR-AUTH-003</td><td>Must</td><td>Upon successful authentication, the system shall establish a server-side session and redirect the user to the dashboard.</td></tr>
+  <tr><td class="req-id">FR-AUTH-004</td><td>Must</td><td>The system shall provide a logout action that terminates the user session.</td></tr>
+  <tr><td class="req-id">FR-AUTH-005</td><td>Must</td><td>All application pages except the login page shall require an authenticated session.</td></tr>
+  <tr><td class="req-id">FR-AUTH-006</td><td>Must</td><td>The system shall enforce Django password validation rules (minimum length, common password check, numeric-only check).</td></tr>
+  <tr><td class="req-id">FR-AUTH-007</td><td>Could</td><td>The system may integrate with an enterprise OpenID Connect provider (e.g., Keycloak) in a future release; not present in current version.</td></tr>
+</table>
+
+<h3>3.2 Navigation and Role-Aware UI</h3>
+<table>
+  <tr><th>ID</th><th>Priority</th><th>Requirement</th></tr>
+  <tr><td class="req-id">FR-NAV-001</td><td>Must</td><td>The system shall display a persistent navigation bar for authenticated users with links to Dashboard, My Queue, and Logout.</td></tr>
+  <tr><td class="req-id">FR-NAV-002</td><td>Must</td><td>The navigation bar shall display a “New incident” link only for users whose role permits reporting (Worker, Supervisor, Shop Floor Manager).</td></tr>
+  <tr><td class="req-id">FR-NAV-003</td><td>Must</td><td>The navigation bar shall display a Users link only for Admin role users.</td></tr>
+  <tr><td class="req-id">FR-NAV-004</td><td>Must</td><td>The system shall display the logged-in user’s full name and role in the navigation area.</td></tr>
+  <tr><td class="req-id">FR-NAV-005</td><td>Must</td><td>The system shall display a numeric badge on “My Queue” when the user has pending queue items visible to their role.</td></tr>
+  <tr><td class="req-id">FR-NAV-006</td><td>Must</td><td>When the user has actionable queue items, the system shall display a banner alert on login with a link to My Queue.</td></tr>
+</table>
+
+<h3>3.3 Incident Report Creation and Editing</h3>
+<h4>3.3.1 Report Data Fields</h4>
+<p>When submitting (not when saving draft), the system shall require the following data elements:</p>
+<table>
+  <tr><th>Field Group</th><th>Fields</th><th>Validation on Submit</th></tr>
+  <tr><td>Incident timing</td><td>Incident date; incident time</td><td>Required</td></tr>
+  <tr><td>Location</td><td>Scene location (from predefined plant locations)</td><td>Required</td></tr>
+  <tr><td>Involves</td><td>One or more of: Person(s), Product(s), Premises, Property</td><td>At least one required</td></tr>
+  <tr><td>Classification</td><td>Category-specific checkboxes per Involves selection; optional “Others” with free text per category</td><td>At least one classification per selected Involves category</td></tr>
+  <tr><td>Narrative</td><td>Description; possible causes; corrective actions taken; immediate actions; effect on process; recommendations</td><td>All required</td></tr>
+  <tr><td>Witnesses</td><td>One or more rows of name and designation</td><td>At least one complete witness required at submit</td></tr>
+  <tr><td>Photos</td><td>Image uploads</td><td>At least one photo required at submit; maximum 10 photos; 5 MB each; JPEG, PNG, or WEBP only</td></tr>
+  <tr><td>Declaration</td><td>Confirmation checkbox with reporter name and designation displayed</td><td>Required on submit</td></tr>
+  <tr><td>Late reason</td><td>Free text explanation</td><td>Required when submission is late (see FR-WF-003)</td></tr>
+</table>
+
+<h4>3.3.2 Classification Matrix</h4>
+<p>When an Involves category is selected, the user shall choose from the following classifications:</p>
+<table>
+  <tr><th>Involves Category</th><th>Available Classifications</th></tr>
+  <tr><td>Person(s)</td><td>Injury, Accident, Assault, Loss, Others (with text)</td></tr>
+  <tr><td>Premises</td><td>Damage, Fire, Power Outage, Water Shortage, Others (with text)</td></tr>
+  <tr><td>Property</td><td>Damage, Accident, Theft/Vandalism, Fire, Others (with text)</td></tr>
+  <tr><td>Product(s)</td><td>Breakdown, Fault, Accident, Theft/Vandalism, Others (with text)</td></tr>
+</table>
+
+<h4>3.3.3 Draft and Edit Requirements</h4>
+<table>
+  <tr><th>ID</th><th>Priority</th><th>Requirement</th></tr>
+  <tr><td class="req-id">FR-RPT-001</td><td>Must</td><td>Authorized reporters shall create new incident reports in Draft status.</td></tr>
+  <tr><td class="req-id">FR-RPT-002</td><td>Must</td><td>The system shall allow saving a report as draft without full submit validation.</td></tr>
+  <tr><td class="req-id">FR-RPT-003</td><td>Must</td><td>The reporter shall edit reports in Draft or Returned to reporter status only.</td></tr>
+  <tr><td class="req-id">FR-RPT-004</td><td>Must</td><td>The system shall preserve uploaded photos and form data when validation fails on submit.</td></tr>
+  <tr><td class="req-id">FR-RPT-005</td><td>Must</td><td>The system shall support adding multiple witnesses dynamically and removing witnesses except the first row.</td></tr>
+  <tr><td class="req-id">FR-RPT-006</td><td>Must</td><td>The system shall support cumulative photo upload up to the configured maximum without replacing previously saved photos.</td></tr>
+  <tr><td class="req-id">FR-RPT-007</td><td>Must</td><td>The reporter shall remove individual photos from draft or returned reports before resubmission.</td></tr>
+  <tr><td class="req-id">FR-RPT-008</td><td>Must</td><td>When an incident is Returned to reporter, the system shall display the verifier’s or forwarder’s return comment prominently on the edit form.</td></tr>
+  <tr><td class="req-id">FR-RPT-009</td><td>Must</td><td>Severity shall not be set by the reporter; the severity field is absent from the reporter form.</td></tr>
+</table>
+
+<h3>3.4 Workflow and Routing</h3>
+<h4>3.4.1 Incident Status Model</h4>
+<table>
+  <tr><th>Status</th><th>Description</th></tr>
+  <tr><td>Draft</td><td>Report created but not submitted.</td></tr>
+  <tr><td>Pending verification</td><td>Submitted and awaiting assigned verifier.</td></tr>
+  <tr><td>Returned to reporter</td><td>Sent back for correction with comment.</td></tr>
+  <tr><td>Pending approval</td><td>Verified and awaiting assigned approver.</td></tr>
+  <tr><td>Returned to verifier</td><td>Rejected by approver; awaiting verifier action.</td></tr>
+  <tr><td>Closed</td><td>Approved and finalized; no further edits permitted.</td></tr>
+</table>
+
+<h4>3.4.2 Routing Matrix</h4>
+<p>On submit or resubmit, the system shall assign verifier and approver automatically according to reporter role and scene location:</p>
+<table>
+  <tr><th>Reporter Role</th><th>Verifier Assigned</th><th>Approver Assigned</th></tr>
+  <tr><td>Worker at location L</td><td>Supervisor at location L</td><td>Shop Floor Manager at location L</td></tr>
+  <tr><td>Supervisor at location L</td><td>Shop Floor Manager at location L</td><td>Director of Production</td></tr>
+  <tr><td>Shop Floor Manager at location L</td><td>Director of Production</td><td>CEO</td></tr>
+</table>
+<p>
+  If no active user exists for a required role and location, submission shall fail with an instruction to contact IT Admin. If reporter, verifier, and approver would resolve to fewer than three distinct users, submission shall fail with a role-separation error.
+</p>
+
+<h4>3.4.3 Workflow Actions</h4>
+<table>
+  <tr><th>ID</th><th>Priority</th><th>Requirement</th></tr>
+  <tr><td class="req-id">FR-WF-001</td><td>Must</td><td>On first successful submit, the system shall assign a unique incident identifier and set status to Pending verification.</td></tr>
+  <tr><td class="req-id">FR-WF-002</td><td>Must</td><td>On resubmit after return, the system shall retain the same incident identifier and reassign the same verifier and approver pair resolved at submission.</td></tr>
+  <tr><td class="req-id">FR-WF-003</td><td>Must</td><td>The system shall flag a submission as late when submit time is strictly greater than incident date/time plus 30 minutes (configurable via INCIDENT_LATE_MINUTES). Submissions at exactly 30 minutes shall not be late.</td></tr>
+  <tr><td class="req-id">FR-WF-004</td><td>Must</td><td>Late submissions shall require a non-empty late reason on both client and server validation.</td></tr>
+  <tr><td class="req-id">FR-WF-005</td><td>Must</td><td>On resubmit, previously assigned severity shall be cleared until the verifier assigns it again.</td></tr>
+  <tr><td class="req-id">FR-WF-006</td><td>Must</td><td>The assigned verifier shall verify an incident only when status is Pending verification.</td></tr>
+  <tr><td class="req-id">FR-WF-007</td><td>Must</td><td>Verification shall require selection of severity from: Insignificant, Minor, Moderate, Major, Catastrophic.</td></tr>
+  <tr><td class="req-id">FR-WF-008</td><td>Must</td><td>Successful verification shall set status to Pending approval and record verifier confirmation timestamp.</td></tr>
+  <tr><td class="req-id">FR-WF-009</td><td>Must</td><td>The verifier shall reject to reporter with a mandatory comment, setting status to Returned to reporter.</td></tr>
+  <tr><td class="req-id">FR-WF-010</td><td>Must</td><td>The assigned approver shall approve only when status is Pending approval.</td></tr>
+  <tr><td class="req-id">FR-WF-011</td><td>Must</td><td>Approval shall set status to Closed, record approver confirmation and closed timestamps, and prohibit further modification.</td></tr>
+  <tr><td class="req-id">FR-WF-012</td><td>Must</td><td>The approver shall reject to verifier with a mandatory comment, setting status to Returned to verifier.</td></tr>
+  <tr><td class="req-id">FR-WF-013</td><td>Must</td><td>When status is Returned to verifier, the assigned verifier may forward to reporter with a mandatory comment, setting status to Returned to reporter.</td></tr>
+  <tr><td class="req-id">FR-WF-014</td><td>Must</td><td>Verifier and approver shall not edit reporter-entered report fields; they may only perform workflow actions defined above.</td></tr>
+  <tr><td class="req-id">FR-WF-015</td><td>Must</td><td>Closed incidents shall not be reopened through the application.</td></tr>
+</table>
+
+<h4>3.4.4 Incident Identifier Format</h4>
+<p>
+  On first submit, the system shall generate an incident identifier using the pattern:
+  <code>{PREFIX}{MM}/{DD}-{YYYY}-{SEQ}</code>
+  where PREFIX is an organization-configured constant (default: organizational department prefix ending with a dot); MM/DD-YYYY derive from submission timestamp; SEQ is a five-digit zero-padded sequence number resetting each calendar year.
+</p>
+<p>Example pattern: <code>ORG.DPN.06/24-2026-00001</code></p>
+
+<h3>3.5 Dashboard, Search, and Export</h3>
+<table>
+  <tr><th>ID</th><th>Priority</th><th>Requirement</th></tr>
+  <tr><td class="req-id">FR-DSH-001</td><td>Must</td><td>The dashboard shall display summary counts: open, closed, pending verification, pending approval, and late incidents within the user’s visibility scope.</td></tr>
+  <tr><td class="req-id">FR-DSH-002</td><td>Must</td><td>The dashboard shall list incidents as navigable cards showing: incident ID, status, location, date, severity, reporter, and late flag.</td></tr>
+  <tr><td class="req-id">FR-DSH-003</td><td>Must</td><td>The dashboard shall provide filters for status, location, severity, date range, and late-only flag.</td></tr>
+  <tr><td class="req-id">FR-DSH-004</td><td>Must</td><td>Filter changes (except explicit reset) shall automatically refresh results without requiring a separate “Apply” button.</td></tr>
+  <tr><td class="req-id">FR-DSH-005</td><td>Must</td><td>The dashboard shall provide a Reset control clearing all filters.</td></tr>
+  <tr><td class="req-id">FR-DSH-006</td><td>Must</td><td>The dashboard shall export the currently filtered incident set to CSV format including all stored incident attributes relevant to reporting.</td></tr>
+  <tr><td class="req-id">FR-DSH-007</td><td>Must</td><td>Users with reporting privilege shall access a “Report incident” action from the dashboard.</td></tr>
+</table>
+
+<h3>3.6 Incident Detail View</h3>
+<table>
+  <tr><th>ID</th><th>Priority</th><th>Requirement</th></tr>
+  <tr><td class="req-id">FR-DTL-001</td><td>Must</td><td>The detail page shall display all report fields, witnesses, photos, assigned verifier and approver, severity (when assigned), late flag and reason, and current status.</td></tr>
+  <tr><td class="req-id">FR-DTL-002</td><td>Must</td><td>The detail page shall display a chronological timeline of workflow events with actor, timestamp, entry type, and message where applicable.</td></tr>
+  <tr><td class="req-id">FR-DTL-003</td><td>Must</td><td>Users authorized to edit shall see an Edit report action when the incident is in Draft or Returned to reporter status and they are the reporter.</td></tr>
+  <tr><td class="req-id">FR-DTL-004</td><td>Must</td><td>Closed incidents shall offer a Download PDF action to authorized viewers.</td></tr>
+  <tr><td class="req-id">FR-DTL-005</td><td>Must</td><td>Admin users shall see a Reassign action on non-closed incidents.</td></tr>
+  <tr><td class="req-id">FR-DTL-006</td><td>Must</td><td>Workflow action forms (verify, reject, approve, forward) shall appear only for the assigned user in the appropriate status.</td></tr>
+</table>
+
+<h3>3.7 My Queue</h3>
+<table>
+  <tr><th>ID</th><th>Priority</th><th>Requirement</th></tr>
+  <tr><td class="req-id">FR-QUE-001</td><td>Must</td><td>The queue page shall list incidents pending verification assigned to the current user when their role includes verify visibility.</td></tr>
+  <tr><td class="req-id">FR-QUE-002</td><td>Must</td><td>The queue page shall list incidents pending approval assigned to the current user when their role includes approve visibility.</td></tr>
+  <tr><td class="req-id">FR-QUE-003</td><td>Must</td><td>Supervisors and Shop Floor Managers shall see incidents Returned to verifier assigned to them for forward action.</td></tr>
+  <tr><td class="req-id">FR-QUE-004</td><td>Must</td><td>Workers (and other roles with returned visibility) shall see their own incidents in Returned to reporter status.</td></tr>
+  <tr><td class="req-id">FR-QUE-005</td><td>Must</td><td>Each queue item shall link to the incident detail page.</td></tr>
+</table>
+
+<h3>3.8 Visibility and Authorization Rules</h3>
+<table>
+  <tr><th>Role</th><th>Incidents Visible on Dashboard</th></tr>
+  <tr><td>Worker</td><td>Own reports only</td></tr>
+  <tr><td>Supervisor</td><td>All incidents at assigned location</td></tr>
+  <tr><td>Shop Floor Manager</td><td>All incidents at assigned location</td></tr>
+  <tr><td>Director of Production</td><td>All incidents plant-wide</td></tr>
+  <tr><td>CEO</td><td>All incidents plant-wide</td></tr>
+  <tr><td>Admin</td><td>All incidents plant-wide</td></tr>
+</table>
+<table>
+  <tr><th>ID</th><th>Priority</th><th>Requirement</th></tr>
+  <tr><td class="req-id">FR-AUTHZ-001</td><td>Must</td><td>A user shall view an incident if they are the reporter, assigned verifier, assigned approver, or their role grants location/plant-wide visibility per the table above.</td></tr>
+  <tr><td class="req-id">FR-AUTHZ-002</td><td>Must</td><td>Unauthorized access attempts shall return HTTP 403 Forbidden or redirect as appropriate without exposing incident data.</td></tr>
+</table>
+
+<h3>3.9 Email Notifications</h3>
+<table>
+  <tr><th>Event</th><th>Recipient</th></tr>
+  <tr><td>Incident submitted or resubmitted</td><td>Assigned verifier</td></tr>
+  <tr><td>Verifier rejects to reporter</td><td>Reporter</td></tr>
+  <tr><td>Incident verified</td><td>Assigned approver</td></tr>
+  <tr><td>Approver rejects to verifier</td><td>Assigned verifier</td></tr>
+  <tr><td>Verifier forwards to reporter</td><td>Reporter</td></tr>
+  <tr><td>Incident closed</td><td>Reporter and verifier</td></tr>
+</table>
+<table>
+  <tr><th>ID</th><th>Priority</th><th>Requirement</th></tr>
+  <tr><td class="req-id">FR-EML-001</td><td>Must</td><td>The system shall send email notifications at each event listed above when recipient email is configured.</td></tr>
+  <tr><td class="req-id">FR-EML-002</td><td>Must</td><td>Notification emails shall include a hyperlink to the incident detail page using the configured base URL (IRS_BASE_URL).</td></tr>
+  <tr><td class="req-id">FR-EML-003</td><td>Must</td><td>The system shall log each notification attempt with status SENT or FAILED and error detail in the NotificationLog entity.</td></tr>
+  <tr><td class="req-id">FR-EML-004</td><td>Must</td><td>The system shall not send automated alerts based solely on classification or severity level.</td></tr>
+</table>
+
+<h3>3.10 PDF and CSV Export</h3>
+<table>
+  <tr><th>ID</th><th>Priority</th><th>Requirement</th></tr>
+  <tr><td class="req-id">FR-EXP-001</td><td>Must</td><td>CSV export shall reflect dashboard filter criteria at time of export.</td></tr>
+  <tr><td class="req-id">FR-EXP-002</td><td>Must</td><td>PDF export shall be available only for Closed incidents.</td></tr>
+  <tr><td class="req-id">FR-EXP-003</td><td>Must</td><td>PDF shall include report content, witnesses, embedded photographs, severity, workflow participants, and timeline summary.</td></tr>
+</table>
+
+<h3>3.11 Administration</h3>
+<table>
+  <tr><th>ID</th><th>Priority</th><th>Requirement</th></tr>
+  <tr><td class="req-id">FR-ADM-001</td><td>Must</td><td>Admin users shall create and edit user accounts via /manage/users/ with fields: username, name, email, designation, role, assigned location (conditional), password, active flag.</td></tr>
+  <tr><td class="req-id">FR-ADM-002</td><td>Must</td><td>Assigned location shall be required only for Supervisor and Shop Floor Manager roles and prohibited for other roles.</td></tr>
+  <tr><td class="req-id">FR-ADM-003</td><td>Must</td><td>Password change on edit shall be optional; blank password retains existing credentials.</td></tr>
+  <tr><td class="req-id">FR-ADM-004</td><td>Must</td><td>Admin shall reassign verifier or approver on open incidents with mandatory reason text.</td></tr>
+  <tr><td class="req-id">FR-ADM-005</td><td>Must</td><td>Reassignment replacement shall hold the same role as the incumbent; location-bound roles shall be replaced only by users at the same location.</td></tr>
+  <tr><td class="req-id">FR-ADM-006</td><td>Must</td><td>Reassignment shall exclude candidates who are already the reporter, verifier, or approver on that incident.</td></tr>
+  <tr><td class="req-id">FR-ADM-007</td><td>Must</td><td>Reassignment shall create a timeline entry documenting old and new assignee and reason.</td></tr>
+  <tr><td class="req-id">FR-ADM-008</td><td>Should</td><td>Django superuser admin interface at /admin/ remains available for low-level data inspection and notification logs.</td></tr>
+</table>
+
+<h3>3.12 Audit Timeline</h3>
+<table>
+  <tr><th>ID</th><th>Priority</th><th>Requirement</th></tr>
+  <tr><td class="req-id">FR-AUD-001</td><td>Must</td><td>The system shall append timeline entries for: created, submitted, verified, verification rejected, approved, approval rejected, returned to reporter, verifier reassigned, approver reassigned, and late flagged events.</td></tr>
+  <tr><td class="req-id">FR-AUD-002</td><td>Must</td><td>Timeline entries shall record timestamp, entry type, acting user (when applicable), actor role, message text, and structured metadata where relevant.</td></tr>
+  <tr><td class="req-id">FR-AUD-003</td><td>Must</td><td>Timeline entries shall be immutable; users shall not edit or delete timeline records through the standard UI.</td></tr>
+</table>
+
+<h2 id="sec4" class="page-break">4. External Interface Requirements</h2>
+
+<h3>4.1 User Interfaces</h3>
+<p>
+  The application presents server-rendered HTML pages with responsive CSS layout. Primary screens are: Login, Dashboard, My Queue, Incident Create/Edit form, Incident Detail, User List, User Create/Edit, and Reassign. Forms use accessible labels, inline validation messages, and role-appropriate action buttons. The interface shall be usable on viewport widths from 320px (mobile) to large desktop displays.
+</p>
+
+<h3>4.2 Hardware Interfaces</h3>
+<p>
+  None specific. Client devices require a web browser and optional camera or file picker for photograph upload. No direct interface to shop-floor sensors, PLCs, or barcode scanners is required.
+</p>
+
+<h3>4.3 Software Interfaces</h3>
+<table>
+  <tr><th>Interface</th><th>Description</th></tr>
+  <tr><td>Relational database</td><td>SQLite (development) or PostgreSQL (production) via Django ORM.</td></tr>
+  <tr><td>File system</td><td>Media root directory for incident photo storage organized by year/month.</td></tr>
+  <tr><td>SMTP email</td><td>Django email backend; configurable to console, SMTP, or other Django-supported backends.</td></tr>
+  <tr><td>PDF engine</td><td>xhtml2pdf rendering HTML templates to PDF byte stream.</td></tr>
+  <tr><td>Static assets</td><td>CSS and JavaScript served from application static directory; web fonts loaded from Google Fonts CDN.</td></tr>
+</table>
+
+<h3>4.4 Communications Interfaces</h3>
+<p>
+  Clients communicate with the application over HTTP or HTTPS. Email notifications use SMTP (typically port 587 with TLS). No WebSocket, message queue, or REST API for external consumers is provided in the current release.
+</p>
+
+<h2 id="sec5">5. Non-Functional Requirements</h2>
+
+<h3>5.1 Performance</h3>
+<table>
+  <tr><th>ID</th><th>Priority</th><th>Requirement</th></tr>
+  <tr><td class="req-id">NFR-PERF-001</td><td>Should</td><td>Standard page loads (dashboard, detail) shall complete within 3 seconds under normal plant LAN conditions with up to 10 concurrent users.</td></tr>
+  <tr><td class="req-id">NFR-PERF-002</td><td>Should</td><td>Photo upload shall accept files up to 5 MB each without server timeout under default configuration.</td></tr>
+  <tr><td class="req-id">NFR-PERF-003</td><td>Should</td><td>CSV export of up to 5,000 filtered incidents shall complete within 30 seconds.</td></tr>
+</table>
+
+<h3>5.2 Security</h3>
+<table>
+  <tr><th>ID</th><th>Priority</th><th>Requirement</th></tr>
+  <tr><td class="req-id">NFR-SEC-001</td><td>Must</td><td>All mutating HTTP requests shall include CSRF protection.</td></tr>
+  <tr><td class="req-id">NFR-SEC-002</td><td>Must</td><td>Passwords shall be stored using Django’s password hashing mechanism; plain-text passwords shall not be persisted.</td></tr>
+  <tr><td class="req-id">NFR-SEC-003</td><td>Must</td><td>Authorization checks shall be enforced server-side on every view handling incident data or workflow actions.</td></tr>
+  <tr><td class="req-id">NFR-SEC-004</td><td>Must</td><td>Uploaded files shall be validated by MIME type and size before persistence.</td></tr>
+  <tr><td class="req-id">NFR-SEC-005</td><td>Must</td><td>Production deployments shall set DEBUG=False, use a strong SECRET_KEY, and restrict ALLOWED_HOSTS.</td></tr>
+  <tr><td class="req-id">NFR-SEC-006</td><td>Should</td><td>Production deployments shall terminate TLS at a reverse proxy and enforce HTTPS for all user traffic.</td></tr>
+</table>
+
+<h3>5.3 Reliability and Availability</h3>
+<table>
+  <tr><th>ID</th><th>Priority</th><th>Requirement</th></tr>
+  <tr><td class="req-id">NFR-REL-001</td><td>Must</td><td>Workflow transitions shall be wrapped in database transactions to prevent partial state updates.</td></tr>
+  <tr><td class="req-id">NFR-REL-002</td><td>Must</td><td>Incident ID generation shall use row-level locking on the sequence table to prevent duplicate IDs.</td></tr>
+  <tr><td class="req-id">NFR-REL-003</td><td>Should</td><td>Production environment shall target 99% availability during plant operating hours excluding planned maintenance.</td></tr>
+  <tr><td class="req-id">NFR-REL-004</td><td>Should</td><td>Database and media directory shall be included in daily backup procedures.</td></tr>
+</table>
+
+<h3>5.4 Maintainability</h3>
+<table>
+  <tr><th>ID</th><th>Priority</th><th>Requirement</th></tr>
+  <tr><td class="req-id">NFR-MAIN-001</td><td>Must</td><td>Business rules for workflow and routing shall reside in dedicated service modules separate from view controllers.</td></tr>
+  <tr><td class="req-id">NFR-MAIN-002</td><td>Should</td><td>Configuration parameters (late threshold, photo limits, ID prefix, base URL) shall be externalized to environment variables or settings without code changes.</td></tr>
+</table>
+
+<h3>5.5 Usability</h3>
+<table>
+  <tr><th>ID</th><th>Priority</th><th>Requirement</th></tr>
+  <tr><td class="req-id">NFR-USE-001</td><td>Must</td><td>The incident form shall provide dynamic show/hide of classification sections based on Involves selections.</td></tr>
+  <tr><td class="req-id">NFR-USE-002</td><td>Must</td><td>The late reason field shall appear automatically when date/time indicates a late submission before submit.</td></tr>
+  <tr><td class="req-id">NFR-USE-003</td><td>Must</td><td>Verify action shall remain disabled until severity is selected.</td></tr>
+  <tr><td class="req-id">NFR-USE-004</td><td>Should</td><td>Dashboard incident list shall use card layout readable on mobile and desktop without horizontal scrolling.</td></tr>
+</table>
+
+<h3>5.6 Portability and Scalability</h3>
+<table>
+  <tr><th>ID</th><th>Priority</th><th>Requirement</th></tr>
+  <tr><td class="req-id">NFR-PORT-001</td><td>Must</td><td>The application shall run on any platform supporting Python 3.11+ and Django 5/6.</td></tr>
+  <tr><td class="req-id">NFR-PORT-002</td><td>Should</td><td>Switching from SQLite to PostgreSQL shall require only DATABASE_URL configuration and migration execution.</td></tr>
+</table>
+
+<h2 id="sec6" class="page-break">6. Data Requirements</h2>
+
+<h3>6.1 Plant Locations</h3>
+<p>The system shall maintain a fixed set of active production scene locations. Initial seed data includes six areas: Trim and Final Assembly, Body Shop, Chassis Line, Paint Shop, Machine Shop, and Quality Inspection/Test (QIT). Locations are referenced by incident reports and by Supervisor/Shop Floor Manager assignments.</p>
+
+<h3>6.2 Core Entities</h3>
+<table>
+  <tr><th>Entity</th><th>Key Attributes</th></tr>
+  <tr><td>User</td><td>Username, password hash, first name, last name, email, designation, role, assigned location, active flag</td></tr>
+  <tr><td>Location</td><td>Code, name, active flag</td></tr>
+  <tr><td>Incident</td><td>Incident ID, status, dates/times, scene location, involves flags, classification flags, severity, narrative fields, late flag/reason, reporter, verifier, approver, return comments, confirmation timestamps, audit timestamps</td></tr>
+  <tr><td>Witness</td><td>Incident reference, name, designation, sort order</td></tr>
+  <tr><td>IncidentPhoto</td><td>Incident reference, image file, original filename, size, MIME type, upload timestamp, sort order</td></tr>
+  <tr><td>TimelineEntry</td><td>Incident reference, entry type, actor, actor role, message, metadata JSON, created timestamp</td></tr>
+  <tr><td>IncidentSequence</td><td>Calendar year, last sequence number</td></tr>
+  <tr><td>NotificationLog</td><td>Incident reference, recipient email, notification type, status, error message, timestamps</td></tr>
+</table>
+
+<h3>6.3 Data Retention</h3>
+<p>
+  The system shall retain closed incident records, timeline entries, photographs, and notification logs indefinitely unless superseded by an organizational records-management policy implemented outside this application. No automatic purge is performed by the current version.
+</p>
+
+<h2 id="sec7">7. Other Requirements</h2>
+
+<h3>7.1 Regulatory and Compliance</h3>
+<p>
+  The IRS supports production department operational reporting requirements. Organizations may map retained incident records to internal ISO 9001 or occupational health and safety documentation practices. The system does not automatically generate regulatory filings to external authorities.
+</p>
+
+<h3>7.2 Localization</h3>
+<p>
+  The current release is English-only. All dates and times display in the configured application time zone. Future localization is out of scope for version 1.0.
+</p>
+
+<h3>7.3 Operational Requirements</h3>
+<ul>
+  <li>IT Admin shall verify at least one active Supervisor and Shop Floor Manager per location before production rollout.</li>
+  <li>SMTP credentials and IRS_BASE_URL shall be configured before email notifications are relied upon in production.</li>
+  <li>A management command (seed_data) is provided for development/demo population of locations, users, and ID sequence; it shall not be run against production databases without controlled procedures.</li>
+</ul>
+
+<h2 id="sec8" class="page-break">8. Appendices</h2>
+
+<h3>Appendix A — Workflow State Transition Diagram</h3>
+<div class="figure">
+<pre>
+                    ┌─────────────┐
+                    │    DRAFT    │
+                    └──────┬──────┘
+                           │ submit
+                           ▼
+              ┌────────────────────────┐
+              │ PENDING VERIFICATION   │
+              └─────────┬──────────────┘
+           reject       │ verify
+              │         ▼
+              │    ┌────────────────────────┐
+              │    │  PENDING APPROVAL      │
+              │    └─────────┬──────────────┘
+              │   reject     │ approve
+              │      │       ▼
+              │      │   ┌─────────┐
+              │      │   │ CLOSED  │
+              │      │   └─────────┘
+              │      ▼
+              │ ┌──────────────────────┐
+              │ │ RETURNED TO VERIFIER │
+              │ └──────────┬───────────┘
+              │            │ forward
+              ▼            ▼
+         ┌─────────────────────────┐
+         │ RETURNED TO REPORTER    │──── edit / resubmit ────┐
+         └─────────────────────────┘                         │
+                    ▲                                         │
+                    └─────────────────────────────────────────┘
+                              (returns to PENDING VERIFICATION)
+</pre>
+<p><em>Figure A-1. Incident workflow states and primary transitions</em></p>
+</div>
+
+<h3>Appendix B — Requirement Traceability Summary</h3>
+<table>
+  <tr><th>Business Need</th><th>Requirement IDs</th></tr>
+  <tr><td>Digitize paper incident form</td><td>FR-RPT-001 through FR-RPT-009</td></tr>
+  <tr><td>Enforce approval chain</td><td>FR-WF-001 through FR-WF-015, FR-AUTHZ-001</td></tr>
+  <tr><td>Timely reporting</td><td>FR-WF-003, FR-WF-004</td></tr>
+  <tr><td>Management visibility</td><td>FR-DSH-001 through FR-DSH-007, FR-DTL-001</td></tr>
+  <tr><td>Accountability</td><td>FR-AUD-001 through FR-AUD-003, FR-EML-001 through FR-EML-003</td></tr>
+  <tr><td>Evidence capture</td><td>FR-RPT-006, FR-RPT-007, FR-EXP-003</td></tr>
+  <tr><td>Operational administration</td><td>FR-ADM-001 through FR-ADM-007</td></tr>
+</table>
+
+<h3>Appendix C — Configuration Parameters</h3>
+<table>
+  <tr><th>Parameter</th><th>Default</th><th>Description</th></tr>
+  <tr><td>INCIDENT_ID_PREFIX</td><td>Organization-defined prefix</td><td>Leading portion of generated incident ID</td></tr>
+  <tr><td>INCIDENT_LATE_MINUTES</td><td>30</td><td>Grace period after incident time before late flag</td></tr>
+  <tr><td>INCIDENT_MAX_PHOTOS</td><td>10</td><td>Maximum photos per incident</td></tr>
+  <tr><td>INCIDENT_MAX_PHOTO_BYTES</td><td>5242880 (5 MB)</td><td>Maximum size per photo</td></tr>
+  <tr><td>ALLOWED_PHOTO_TYPES</td><td>image/jpeg, image/png, image/webp</td><td>Permitted MIME types for upload</td></tr>
+  <tr><td>IRS_BASE_URL</td><td>http://127.0.0.1:8000</td><td>Base URL embedded in notification emails</td></tr>
+  <tr><td>TIME_ZONE</td><td>Africa/Kampala</td><td>Application time zone for timestamps</td></tr>
+</table>
+
+<p class="center" style="margin-top:36pt;"><em>— End of Document —</em></p>
+
+</body>
+</html>
