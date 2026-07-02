@@ -1,11 +1,6 @@
 from django.contrib import admin
 
-from .models import Incident, Location, NotificationLog, TimelineEntry
-
-
-@admin.register(Location)
-class LocationAdmin(admin.ModelAdmin):
-    list_display = ("code", "name", "is_active")
+from .models import Incident, NotificationLog, TimelineEntry
 
 
 class WitnessInline(admin.TabularInline):
@@ -26,8 +21,8 @@ class PhotoInline(admin.TabularInline):
 @admin.register(Incident)
 class IncidentAdmin(admin.ModelAdmin):
     list_display = ("incident_id", "status", "scene_location", "reporter", "submitted_at")
-    list_filter = ("status", "scene_location", "severity", "is_late_submission")
-    search_fields = ("incident_id", "reporter__username")
+    list_filter = ("status", "severity", "is_late_submission")
+    search_fields = ("incident_id", "scene_location", "reporter__username")
     inlines = [WitnessInline, PhotoInline]
 
 

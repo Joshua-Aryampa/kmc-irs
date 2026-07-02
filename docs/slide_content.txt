@@ -1,0 +1,21 @@
+﻿SLIDE 1
+INCIDENT REPORTING SYSTEM (IRS) /  / PROGRESS REPORT /  / Joshua Aryampa / Swahiba Nabisere
+
+SLIDE 2
+2. Introduction | Web-based Incident Reporting System (IRS) for Kiira Motors Corporation / Digitizes incident reports from submission through verification to approval / Built as a Django application with Keycloak single sign-on for plant employees / Goal: one system usable plant-wide, with a clear audit trail and accountable sign-offs / This presentation summarizes the problem, solution, challenges, progress, and next steps
+
+SLIDE 3
+3. The Problem | Incident reporting was manual, slow, and difficult to track across the plant / Limited visibility into open incidents, late submissions, and workflow bottlenecks / Hard to produce consistent closed reports with signatures and audit history
+
+SLIDE 4
+4. The Solution | Django web app ΓÇö works on desktop and mobile browsers / Keycloak login for all employees; roles synced automatically on sign-in / Reporter types scene location and selects a verifier; verifier selects an approver / Workflow: Draft ΓåÆ Pending verification ΓåÆ Pending approval ΓåÆ Closed / Dashboard with filters, personal queue, email notifications, CSV export, and PDF reports / Signatories captured at submit, verify, and approve (signature image or printed name)
+
+SLIDE 5
+5. The Challenges | Integrating Keycloak (realm, client, redirect URI, service account for search) / Replacing automatic routing with flexible employee search and manual sign-off selection / Server/client clock sync for JWT validation during login / Signature hosting still to be finalised
+
+SLIDE 6
+6. The Progress | End-to-end workflow implemented and tested locally with Keycloak SSO / Free-text incident location, pagination, and updated signatories section on reports / Employee search for verifier (at submit) and approver (at verify) / Software Requirements Specification and Software Design Document prepared / UI improvements: clearer forms, branded logos, role-based dashboard visibility / Closed incidents export to PDF with official KMC branding
+
+SLIDE 7
+7. The Next Steps | Updating the UI of the System / Configure signature file storage (SIGNATURE_BASE_URL) / Production deployment: PostgreSQL, HTTPS, and application server setup / User acceptance testing with supervisors and representative plant users / Short user guide and handover to Information Systems / support team / Monitor feedback and prioritize analytics enhancements for Admin and CEO roles
+

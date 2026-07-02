@@ -6,29 +6,25 @@
   <p class="page-subtitle">Incidents awaiting your action</p>
 </div>
 <div class="queue-grid">
-  {% if queue_visibility.verify %}
   <section class="form-section">
-    <h2>Pending my verification ({{ verify_qs.count }})</h2>
+    <h2>Pending my verification ({{ verify_page.paginator.count }})</h2>
     {% include "incidents/_queue_list.html" with items=verify_qs %}
+    {% include "incidents/_pagination.html" with page_obj=verify_page query_string=filter_query page_param="page_verify" %}
   </section>
-  {% endif %}
-  {% if queue_visibility.approve %}
   <section class="form-section">
-    <h2>Pending my approval ({{ approve_qs.count }})</h2>
+    <h2>Pending my approval ({{ approve_page.paginator.count }})</h2>
     {% include "incidents/_queue_list.html" with items=approve_qs %}
+    {% include "incidents/_pagination.html" with page_obj=approve_page query_string=filter_query page_param="page_approve" %}
   </section>
-  {% endif %}
-  {% if queue_visibility.forward %}
   <section class="form-section">
-    <h2>Returned to me (verifier) ({{ forward_qs.count }})</h2>
+    <h2>Returned to me (verifier) ({{ forward_page.paginator.count }})</h2>
     {% include "incidents/_queue_list.html" with items=forward_qs %}
+    {% include "incidents/_pagination.html" with page_obj=forward_page query_string=filter_query page_param="page_forward" %}
   </section>
-  {% endif %}
-  {% if queue_visibility.returned %}
   <section class="form-section">
-    <h2>Returned to me (reporter) ({{ returned_qs.count }})</h2>
+    <h2>Returned to me (reporter) ({{ returned_page.paginator.count }})</h2>
     {% include "incidents/_queue_list.html" with items=returned_qs %}
+    {% include "incidents/_pagination.html" with page_obj=returned_page query_string=filter_query page_param="page_returned" %}
   </section>
-  {% endif %}
 </div>
 {% endblock %}

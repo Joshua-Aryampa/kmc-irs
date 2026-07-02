@@ -16,12 +16,14 @@ def incidents_csv(queryset):
             "Incident Time",
             "Severity",
             "Reporter",
+            "Verifier",
+            "Approver",
             "Submitted At",
             "Late",
             "Closed At",
         ]
     )
-    for inc in queryset.select_related("scene_location", "reporter"):
+    for inc in queryset.select_related("reporter", "verifier", "approver"):
         writer.writerow(
             [
                 inc.incident_id,
@@ -31,6 +33,8 @@ def incidents_csv(queryset):
                 inc.incident_time,
                 inc.get_severity_display(),
                 inc.reporter.full_name,
+                inc.verifier.full_name if inc.verifier_id else "",
+                inc.approver.full_name if inc.approver_id else "",
                 inc.submitted_at,
                 inc.is_late_submission,
                 inc.closed_at,

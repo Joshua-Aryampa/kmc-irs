@@ -55,9 +55,9 @@
     <h2>Analysis & response</h2>
     <div class="form-stack">
       <div><label class="form-label">Possible causes</label>{{ form.possible_causes }}</div>
-      <div><label class="form-label">Corrective actions taken</label>{{ form.corrective_actions_taken }}</div>
+      <div><label class="form-label">Corrective actions taken <span class="label-optional">(optional)</span></label>{{ form.corrective_actions_taken }}</div>
       <div><label class="form-label">Immediate actions</label>{{ form.immediate_actions }}</div>
-      <div><label class="form-label">Effect on the process</label>{{ form.effect_on_process }}</div>
+      <div><label class="form-label">Effect of the incident</label>{{ form.effect_on_process }}</div>
       <div><label class="form-label">Recommendations</label>{{ form.recommendations }}</div>
     </div>
   </section>
@@ -72,8 +72,7 @@
       {% for f in formset %}
       <div class="witness-row form-grid-2 border-b" data-form-index="{{ forloop.counter0 }}">
         {% for hidden in f.hidden_fields %}{{ hidden }}{% endfor %}
-        <div><label class="form-label">Name</label>{{ f.name }}{% if f.name.errors %}<p class="field-error">{{ f.name.errors.0 }}</p>{% endif %}</div>
-        <div><label class="form-label">Designation</label>{{ f.designation }}{% if f.designation.errors %}<p class="field-error">{{ f.designation.errors.0 }}</p>{% endif %}</div>
+        <div class="span-full"><label class="form-label">Witness name</label>{{ f.name }}{% if f.name.errors %}<p class="field-error">{{ f.name.errors.0 }}</p>{% endif %}</div>
         <div class="span-full witness-remove-wrap {% if forloop.first %}hidden{% endif %}">
           {% if f.DELETE %}<label class="choice-label btn-danger-text">{{ f.DELETE }} Remove witness</label>{% endif %}
         </div>
@@ -84,8 +83,7 @@
       <div class="witness-row form-grid-2 border-b" data-form-index="__prefix__">
         {% with f=formset.empty_form %}
         {% for hidden in f.hidden_fields %}{{ hidden }}{% endfor %}
-        <div><label class="form-label">Name</label>{{ f.name }}</div>
-        <div><label class="form-label">Designation</label>{{ f.designation }}</div>
+        <div class="span-full"><label class="form-label">Witness name</label>{{ f.name }}</div>
         <div class="span-full"><button type="button" class="remove-witness-btn btn-danger-text btn-sm" style="background:none;border:none;padding:0;cursor:pointer;">Remove witness</button></div>
         {% endwith %}
       </div>
@@ -113,11 +111,24 @@
     <p id="photo-limit-msg" class="field-error hidden"></p>
   </section>
 
+  <section class="form-section signoff-panel">
+    <h2>Verification assignment</h2>
+    <p class="section-lead">Select the supervisor who will verify this report before you submit.</p>
+    {% if show_verifier_search %}
+    <div class="employee-search-wrap employee-search-wrap--prominent">
+      <label class="form-label form-label--emphasis">{{ form.verifier_name.label }}</label>
+      {{ form.verifier_name }}
+      {{ form.verifier_keycloak_id }}
+      {% if form.verifier_name.errors %}<p class="field-error">{{ form.verifier_name.errors.0 }}</p>{% endif %}
+      <p class="field-hint">Type at least 2 letters of their name, then pick from the list. You can change this when resubmitting after a return.</p>
+    </div>
+    {% endif %}
+  </section>
+
   <section class="form-section">
     <h2>Declaration</h2>
     <p style="font-size:var(--text-sm);margin-bottom:1rem;line-height:1.5;">
-      I, <strong>{{ user.full_name }}</strong>, <strong>{{ user.designation }}</strong>,
-      confirm this report is accurate to the best of my knowledge.
+      I, <strong>{{ user.full_name }}</strong>, confirm this report is accurate to the best of my knowledge.
     </p>
     <div id="late-reason" style="display:none">
       <label class="form-label" style="color:#92400e;">Reason for delay (required if submitting more than {{ late_minutes }} minutes after incident time)</label>
@@ -151,4 +162,5 @@
   };
 </script>
 <script src="/static/js/incident-form.js"></script>
+<script src="/static/js/employee-search.js"></script>
 {% endblock %}

@@ -18,6 +18,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "mozilla_django_oidc",
     "accounts",
     "incidents",
 ]
@@ -82,6 +83,44 @@ else:
 
 AUTH_USER_MODEL = "accounts.User"
 
+KEYCLOAK_SERVER_URL = os.getenv("KEYCLOAK_SERVER_URL", "").strip()
+KEYCLOAK_REALM = os.getenv("KEYCLOAK_REALM", "kmc").strip()
+KEYCLOAK_CLIENT_ID = os.getenv("KEYCLOAK_CLIENT_ID", "irs").strip()
+KEYCLOAK_CLIENT_SECRET = os.getenv("KEYCLOAK_CLIENT_SECRET", "").strip()
+KEYCLOAK_ADMIN_CLIENT_ID = os.getenv("KEYCLOAK_ADMIN_CLIENT_ID", KEYCLOAK_CLIENT_ID).strip()
+KEYCLOAK_ADMIN_CLIENT_SECRET = os.getenv("KEYCLOAK_ADMIN_CLIENT_SECRET", KEYCLOAK_CLIENT_SECRET).strip()
+
+if KEYCLOAK_SERVER_URL:
+    AUTHENTICATION_BACKENDS = [
+        "accounts.keycloak_backend.KmcOIDCAuthenticationBackend",
+    ]
+    OIDC_RP_CLIENT_ID = KEYCLOAK_CLIENT_ID
+    OIDC_RP_CLIENT_SECRET = KEYCLOAK_CLIENT_SECRET
+    OIDC_OP_AUTHORIZATION_ENDPOINT = (
+        f"{KEYCLOAK_SERVER_URL.rstrip('/')}/realms/{KEYCLOAK_REALM}/protocol/openid-connect/auth"
+    )
+    OIDC_OP_TOKEN_ENDPOINT = (
+        f"{KEYCLOAK_SERVER_URL.rstrip('/')}/realms/{KEYCLOAK_REALM}/protocol/openid-connect/token"
+    )
+    OIDC_OP_USER_ENDPOINT = (
+        f"{KEYCLOAK_SERVER_URL.rstrip('/')}/realms/{KEYCLOAK_REALM}/protocol/openid-connect/userinfo"
+    )
+    OIDC_OP_JWKS_ENDPOINT = (
+        f"{KEYCLOAK_SERVER_URL.rstrip('/')}/realms/{KEYCLOAK_REALM}/protocol/openid-connect/certs"
+    )
+    OIDC_RP_SIGN_ALGO = "RS256"
+    OIDC_RP_SCOPES = "openid email profile"
+    OIDC_JWT_LEEWAY = int(os.getenv("OIDC_JWT_LEEWAY", "60"))
+    OIDC_STORE_ACCESS_TOKEN = True
+    OIDC_STORE_ID_TOKEN = True
+    OIDC_CREATE_USER = True
+    LOGIN_URL = "oidc_authentication_init"
+    LOGOUT_REDIRECT_URL = "/"
+else:
+    AUTHENTICATION_BACKENDS = [
+        "django.contrib.auth.backends.ModelBackend",
+    ]
+
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
@@ -103,9 +142,10 @@ MEDIA_ROOT = BASE_DIR / "media"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "dashboard"
-LOGOUT_REDIRECT_URL = "login"
+if not KEYCLOAK_SERVER_URL:
+    LOGIN_URL = "login"
+    LOGOUT_REDIRECT_URL = "login"
 
 EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
 EMAIL_HOST = os.getenv("EMAIL_HOST", "")
@@ -116,10 +156,14 @@ EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "True").lower() in ("1", "true", "yes
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "incidents@kiira.local").strip()
 IRS_BASE_URL = os.getenv("IRS_BASE_URL", "http://127.0.0.1:8000")
 
+SIGNATURE_BASE_URL = os.getenv("SIGNATURE_BASE_URL", "").strip()
+SIGNATURE_PATH_TEMPLATE = os.getenv("SIGNATURE_PATH_TEMPLATE", "{keycloak_id}.png").strip()
+
 INCIDENT_ID_PREFIX = "KMC.DPN."
 INCIDENT_LATE_MINUTES = 30
 INCIDENT_MAX_PHOTOS = 10
 INCIDENT_MAX_PHOTO_BYTES = 5 * 1024 * 1024
 ALLOWED_PHOTO_TYPES = {"image/jpeg", "image/png", "image/webp"}
+INCIDENT_LIST_PAGE_SIZE = 20
 
 FILE_UPLOAD_MAX_MEMORY_SIZE = INCIDENT_MAX_PHOTO_BYTES * INCIDENT_MAX_PHOTOS

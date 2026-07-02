@@ -1,0 +1,70 @@
+<div class="signatory-grid">
+  <div class="signatory-card">
+    <p class="signatory-role">Reporter</p>
+    <p class="signatory-name">{{ incident.reporter.full_name }}</p>
+    <div class="signatory-signature-slot">
+      {% if incident.reporter_confirmed_at %}
+        {% if incident.reporter_signature %}
+        <img src="{{ incident.reporter_signature.url }}" alt="Reporter signature" class="signatory-image">
+        {% else %}
+        <p class="signatory-fallback">{{ incident.reporter.full_name }}</p>
+        {% endif %}
+      {% else %}
+        <p class="signatory-pending">Awaiting submission</p>
+      {% endif %}
+    </div>
+    {% if incident.reporter_confirmed_at %}
+    <p class="signatory-meta">{{ incident.reporter_confirmed_at|date:"d M Y H:i" }}</p>
+    {% endif %}
+  </div>
+
+  <div class="signatory-card">
+    <p class="signatory-role">Verifier</p>
+    {% if incident.verifier %}
+    <p class="signatory-name">{{ incident.verifier.full_name }}</p>
+    {% else %}
+    <p class="signatory-name signatory-name--muted">Not assigned</p>
+    {% endif %}
+    <div class="signatory-signature-slot">
+      {% if incident.verifier_confirmed_at %}
+        {% if incident.verifier_signature %}
+        <img src="{{ incident.verifier_signature.url }}" alt="Verifier signature" class="signatory-image">
+        {% else %}
+        <p class="signatory-fallback">{{ incident.verifier.full_name }}</p>
+        {% endif %}
+      {% elif incident.verifier %}
+        <p class="signatory-pending">Awaiting verification</p>
+      {% else %}
+        <p class="signatory-pending">—</p>
+      {% endif %}
+    </div>
+    {% if incident.verifier_confirmed_at %}
+    <p class="signatory-meta">{{ incident.verifier_confirmed_at|date:"d M Y H:i" }}</p>
+    {% endif %}
+  </div>
+
+  <div class="signatory-card">
+    <p class="signatory-role">Approver</p>
+    {% if incident.approver %}
+    <p class="signatory-name">{{ incident.approver.full_name }}</p>
+    {% else %}
+    <p class="signatory-name signatory-name--muted">Not assigned</p>
+    {% endif %}
+    <div class="signatory-signature-slot">
+      {% if incident.approver_confirmed_at %}
+        {% if incident.approver_signature %}
+        <img src="{{ incident.approver_signature.url }}" alt="Approver signature" class="signatory-image">
+        {% else %}
+        <p class="signatory-fallback">{{ incident.approver.full_name }}</p>
+        {% endif %}
+      {% elif incident.approver %}
+        <p class="signatory-pending">Awaiting approval</p>
+      {% else %}
+        <p class="signatory-pending">—</p>
+      {% endif %}
+    </div>
+    {% if incident.approver_confirmed_at %}
+    <p class="signatory-meta">{{ incident.approver_confirmed_at|date:"d M Y H:i" }}</p>
+    {% endif %}
+  </div>
+</div>

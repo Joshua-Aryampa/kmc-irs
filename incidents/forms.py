@@ -4,6 +4,7 @@ from django.forms import BaseInlineFormSet, inlineformset_factory
 
 from incidents.classifications import INVOLVE_GROUPS
 from incidents.models import Incident, Severity, Witness
+from incidents.services.keycloak import KeycloakError, resolve_user
 from incidents.services.workflow import is_late_at_submission
 
 
@@ -12,6 +13,19 @@ class IncidentForm(forms.ModelForm):
         required=False,
         label="I confirm this report is accurate to the best of my knowledge",
         widget=forms.CheckboxInput(attrs={"class": "checkbox-field"}),
+    )
+    verifier_keycloak_id = forms.CharField(required=False, widget=forms.HiddenInput())
+    verifier_name = forms.CharField(
+        required=False,
+        label="Person to verify (supervisor)",
+        widget=forms.TextInput(
+            attrs={
+                "class": "input-field employee-search",
+                "placeholder": "Search person to verify (supervisor)",
+                "autocomplete": "off",
+                "data-employee-target": "verifier",
+            }
+        ),
     )
 
     class Meta:
@@ -54,7 +68,13 @@ class IncidentForm(forms.ModelForm):
         widgets = {
             "incident_date": forms.DateInput(attrs={"type": "date", "class": "input-field"}),
             "incident_time": forms.TimeInput(attrs={"type": "time", "class": "input-field"}),
-            "scene_location": forms.Select(attrs={"class": "input-field"}),
+            "scene_location": forms.TextInput(
+                attrs={
+                    "class": "input-field",
+                    "maxlength": "70",
+                    "placeholder": "Where did the incident occur?",
+                }
+            ),
             "description": forms.Textarea(attrs={"rows": 4, "class": "input-field"}),
             "possible_causes": forms.Textarea(attrs={"rows": 3, "class": "input-field"}),
             "corrective_actions_taken": forms.Textarea(attrs={"rows": 3, "class": "input-field"}),
@@ -78,6 +98,7 @@ class IncidentForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         self.submitting = kwargs.pop("submitting", False)
+        self.reporter = kwargs.pop("reporter", None)
         super().__init__(*args, **kwargs)
         checkbox_fields = [
             "involves_person",
@@ -109,7 +130,6 @@ class IncidentForm(forms.ModelForm):
             "scene_location",
             "description",
             "possible_causes",
-            "corrective_actions_taken",
             "immediate_actions",
             "effect_on_process",
             "recommendations",
@@ -117,7 +137,22 @@ class IncidentForm(forms.ModelForm):
         for field in required_text:
             self.fields[field].required = self.submitting
 
+        self.fields["corrective_actions_taken"].required = False
+        self.fields["corrective_actions_taken"].label = "Corrective actions taken (optional)"
+        self.fields["effect_on_process"].label = "Effect of the incident"
+
         self.fields["confirm"].required = False
+        if self.instance and self.instance.pk and self.instance.verifier:
+            self.fields["verifier_name"].initial = self.instance.verifier.full_name
+            self.fields["verifier_keycloak_id"].initial = (
+                self.instance.verifier.keycloak_id or str(self.instance.verifier.pk)
+            )
+
+    def clean_scene_location(self):
+        value = (self.cleaned_data.get("scene_location") or "").strip()
+        if len(value) > 70:
+            raise forms.ValidationError("Location must be 70 characters or fewer.")
+        return value
 
     def clean(self):
         cleaned = super().clean()
@@ -125,9 +160,7 @@ class IncidentForm(forms.ModelForm):
             return cleaned
 
         involves_selected = [
-            key
-            for key, group in INVOLVE_GROUPS.items()
-            if cleaned.get(group["field"])
+            key for key, group in INVOLVE_GROUPS.items() if cleaned.get(group["field"])
         ]
         if not involves_selected:
             raise forms.ValidationError("Select at least one option under Involves.")
@@ -168,16 +201,72 @@ class IncidentForm(forms.ModelForm):
                     f"{settings.INCIDENT_LATE_MINUTES} minutes after the incident time.",
                 )
 
+        verifier_id = (cleaned.get("verifier_keycloak_id") or "").strip()
+        if not verifier_id:
+            self.add_error("verifier_name", "Select a verifier from the search results.")
+        else:
+            try:
+                verifier = resolve_user(verifier_id)
+            except KeycloakError as exc:
+                self.add_error("verifier_name", str(exc))
+            else:
+                if self.reporter and verifier.id == self.reporter.id:
+                    self.add_error("verifier_name", "Verifier must be a different person from the reporter.")
+                cleaned["selected_verifier"] = verifier
+
         return cleaned
 
 
-class VerifierSeverityForm(forms.Form):
+class VerifierActionForm(forms.Form):
     severity = forms.ChoiceField(
         choices=[("", "Select severity")] + list(Severity.choices),
         label="Severity",
         required=True,
         widget=forms.Select(attrs={"class": "input-field", "id": "verify-severity"}),
     )
+    approver_keycloak_id = forms.CharField(required=False, widget=forms.HiddenInput())
+    approver_name = forms.CharField(
+        required=False,
+        label="Person to approve (supervisor)",
+        widget=forms.TextInput(
+            attrs={
+                "class": "input-field employee-search",
+                "placeholder": "Search person to approve (supervisor)",
+                "autocomplete": "off",
+                "data-employee-target": "approver",
+            }
+        ),
+    )
+
+    def __init__(self, *args, incident=None, **kwargs):
+        self.incident = incident
+        super().__init__(*args, **kwargs)
+        if incident and incident.approver:
+            self.fields["approver_name"].initial = incident.approver.full_name
+            self.fields["approver_keycloak_id"].initial = (
+                incident.approver.keycloak_id or str(incident.approver.pk)
+            )
+        if incident and incident.severity:
+            self.fields["severity"].initial = incident.severity
+
+    def clean(self):
+        cleaned = super().clean()
+        approver_id = (cleaned.get("approver_keycloak_id") or "").strip()
+        if not approver_id:
+            self.add_error("approver_name", "Select an approver from the search results.")
+            return cleaned
+        try:
+            approver = resolve_user(approver_id)
+        except KeycloakError as exc:
+            self.add_error("approver_name", str(exc))
+            return cleaned
+
+        if self.incident:
+            ids = {self.incident.reporter_id, self.incident.verifier_id, approver.id}
+            if len(ids) != 3:
+                self.add_error("approver_name", "Approver must be different from the reporter and verifier.")
+        cleaned["selected_approver"] = approver
+        return cleaned
 
 
 class WitnessForm(forms.ModelForm):
@@ -186,10 +275,12 @@ class WitnessForm(forms.ModelForm):
         fields = ["name", "designation"]
         widgets = {
             "name": forms.TextInput(attrs={"class": "input-field witness-name", "placeholder": "Witness name"}),
-            "designation": forms.TextInput(
-                attrs={"class": "input-field witness-designation", "placeholder": "Designation"}
-            ),
+            "designation": forms.HiddenInput(),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["designation"].required = False
 
 
 class BaseWitnessFormSet(BaseInlineFormSet):
@@ -202,16 +293,11 @@ class BaseWitnessFormSet(BaseInlineFormSet):
             if not form.cleaned_data or form.cleaned_data.get("DELETE"):
                 continue
             name = (form.cleaned_data.get("name") or "").strip()
-            designation = (form.cleaned_data.get("designation") or "").strip()
-            if name or designation:
-                if not name or not designation:
-                    raise forms.ValidationError(
-                        "Each witness must have both a name and a designation, or remove the empty row."
-                    )
+            if name:
                 active += 1
         if active < 1:
             raise forms.ValidationError(
-                "At least one witness is required. Click Add witness and enter name and designation."
+                "At least one witness is required. Click Add witness and enter a name."
             )
 
 
@@ -264,98 +350,6 @@ class ForwardCommentForm(forms.Form):
         min_length=10,
         label="Comment to reporter",
     )
-
-
-class ReassignForm(forms.Form):
-    role_kind = forms.ChoiceField(
-        choices=[("verifier", "Verifier"), ("approver", "Approver")],
-        widget=forms.RadioSelect,
-    )
-    new_assignee = forms.ModelChoiceField(queryset=None, label="New assignee")
-    reason = forms.CharField(widget=forms.Textarea(attrs={"rows": 3, "class": "input-field"}), min_length=5)
-
-    def __init__(self, incident, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.incident = incident
-        self.fields["new_assignee"].queryset = incident.reporter.__class__.objects.none()
-
-    def set_assignee_queryset(self, qs):
-        self.fields["new_assignee"].queryset = qs
-
-
-class UserAdminForm(forms.ModelForm):
-    password = forms.CharField(widget=forms.PasswordInput(attrs={"class": "input-field"}), required=False)
-
-    class Meta:
-        from accounts.models import User
-
-        model = User
-        fields = [
-            "username",
-            "email",
-            "first_name",
-            "last_name",
-            "designation",
-            "role",
-            "assigned_location",
-            "is_active",
-        ]
-
-    def __init__(self, *args, **kwargs):
-        from accounts.models import Role, User
-
-        super().__init__(*args, **kwargs)
-        self._meta.model = User
-        for name, field in self.fields.items():
-            if name == "is_active":
-                continue
-            if name in {"assigned_location", "role"}:
-                field.widget.attrs["class"] = "input-field"
-            elif name != "password":
-                field.widget.attrs.setdefault("class", "input-field")
-
-        role = self._selected_role()
-        self.show_location_field = role in {Role.SUPERVISOR, Role.SHOP_FLOOR_MANAGER}
-        if self.show_location_field:
-            self.fields["assigned_location"].required = True
-        else:
-            self.fields["assigned_location"].required = False
-
-    def _selected_role(self):
-        from accounts.models import Role
-
-        if self.data.get("role"):
-            return self.data.get("role")
-        if self.instance.pk:
-            return self.instance.role
-        return Role.WORKER
-
-    def clean(self):
-        cleaned = super().clean()
-        from accounts.models import Role
-
-        role = cleaned.get("role")
-        loc = cleaned.get("assigned_location")
-        if role in {Role.SUPERVISOR, Role.SHOP_FLOOR_MANAGER} and not loc:
-            raise forms.ValidationError("Supervisor and Shop Floor Manager must have an assigned location.")
-        if role not in {Role.SUPERVISOR, Role.SHOP_FLOOR_MANAGER}:
-            cleaned["assigned_location"] = None
-        if not self.instance.pk and not cleaned.get("password"):
-            raise forms.ValidationError("Password is required when creating a new user.")
-        return cleaned
-
-    def save(self, commit=True):
-        from accounts.models import Role
-
-        user = super().save(commit=False)
-        if user.role not in {Role.SUPERVISOR, Role.SHOP_FLOOR_MANAGER}:
-            user.assigned_location = None
-        password = self.cleaned_data.get("password")
-        if password:
-            user.set_password(password)
-        if commit:
-            user.save()
-        return user
 
 
 class PhotoUploadForm(forms.Form):

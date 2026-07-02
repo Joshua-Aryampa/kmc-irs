@@ -15,7 +15,6 @@
   <div class="page-actions">
     {% if can_edit %}<a href="{% url 'incident_edit' incident.pk %}" class="btn-secondary">Edit report</a>{% endif %}
     {% if incident.is_closed %}<a href="{% url 'incident_pdf' incident.pk %}" class="btn-primary">Download PDF</a>{% endif %}
-    {% if user.role == 'ADMIN' and not incident.is_closed %}<a href="{% url 'admin_reassign' incident.pk %}" class="btn-secondary">Reassign</a>{% endif %}
   </div>
 </div>
 
@@ -33,17 +32,17 @@
         <dt>Severity</dt><dd>{% if incident.severity %}{{ incident.get_severity_display }}{% else %}Not yet assigned{% endif %}</dd>
         <dt>Involves</dt><dd>{{ incident.involves_labels|join:", " }}</dd>
         <dt>Classification</dt><dd>{{ incident.classification_labels|join:", " }}</dd>
-        <dt>Reporter</dt><dd>{{ incident.reporter.full_name }} ({{ incident.reporter.designation }})</dd>
+        <dt>Reporter</dt><dd>{{ incident.reporter.full_name }}</dd>
         <dt>Verifier</dt><dd>{{ incident.verifier.full_name|default:"—" }}</dd>
         <dt>Approver</dt><dd>{{ incident.approver.full_name|default:"—" }}</dd>
       </dl>
       <div class="detail-body">
-        <div class="detail-body-block"><strong>Description</strong><p class="whitespace-pre-wrap">{{ incident.description }}</p></div>
-        <div class="detail-body-block"><strong>Possible causes</strong><p class="whitespace-pre-wrap">{{ incident.possible_causes }}</p></div>
-        <div class="detail-body-block"><strong>Corrective actions taken</strong><p class="whitespace-pre-wrap">{{ incident.corrective_actions_taken }}</p></div>
-        <div class="detail-body-block"><strong>Immediate actions</strong><p class="whitespace-pre-wrap">{{ incident.immediate_actions }}</p></div>
-        <div class="detail-body-block"><strong>Effect on the process</strong><p class="whitespace-pre-wrap">{{ incident.effect_on_process }}</p></div>
-        <div class="detail-body-block"><strong>Recommendations</strong><p class="whitespace-pre-wrap">{{ incident.recommendations }}</p></div>
+        <div class="detail-body-block"><strong>Description</strong><p class="detail-value whitespace-pre-wrap">{{ incident.description }}</p></div>
+        <div class="detail-body-block"><strong>Possible causes</strong><p class="detail-value whitespace-pre-wrap">{{ incident.possible_causes }}</p></div>
+        <div class="detail-body-block"><strong>Corrective actions taken</strong><p class="detail-value whitespace-pre-wrap">{% if incident.corrective_actions_taken %}{{ incident.corrective_actions_taken }}{% else %}<span class="detail-empty">Not provided</span>{% endif %}</p></div>
+        <div class="detail-body-block"><strong>Immediate actions</strong><p class="detail-value whitespace-pre-wrap">{{ incident.immediate_actions }}</p></div>
+        <div class="detail-body-block"><strong>Effect of the incident</strong><p class="detail-value whitespace-pre-wrap">{{ incident.effect_on_process }}</p></div>
+        <div class="detail-body-block"><strong>Recommendations</strong><p class="detail-value whitespace-pre-wrap">{{ incident.recommendations }}</p></div>
         {% if incident.is_late_submission %}
         <div class="detail-body-block"><strong>Late reason</strong><p class="whitespace-pre-wrap">{{ incident.late_reason }}</p></div>
         {% endif %}
@@ -54,7 +53,7 @@
       <h2>Witnesses</h2>
       <ul class="form-stack">
         {% for w in incident.witnesses.all %}
-        <li class="witness-item">{{ w.name }} — {{ w.designation }}</li>
+        <li class="witness-item">{{ w.name }}</li>
         {% endfor %}
       </ul>
     </section>
@@ -68,6 +67,11 @@
         </a>
         {% endfor %}
       </div>
+    </section>
+
+    <section class="form-section">
+      <h2>Signatories</h2>
+      {% include "incidents/_signatories.html" %}
     </section>
   </div>
 
@@ -85,26 +89,36 @@
 
       <form method="post" action="{% url 'incident_verify' incident.pk %}" id="verify-form" class="action-form">{% csrf_token %}
         <label class="form-label">Severity (required before verifying)</label>
-        {{ severity_form.severity }}
+        {{ verify_form.severity }}
+        <label class="form-label form-label--emphasis" style="margin-top:0.75rem;">Person to approve (supervisor)</label>
+        <div class="employee-search-wrap employee-search-wrap--compact">
+          {{ verify_form.approver_name }}
+          {{ verify_form.approver_keycloak_id }}
+        </div>
+        {% if verify_form.approver_name.errors %}<p class="field-error">{{ verify_form.approver_name.errors.0 }}</p>{% endif %}
+        <p class="field-hint">Type at least 2 letters, then select from the list. Defaults to the previous approver if one was already chosen.</p>
         <p id="severity-required-msg" class="field-error hidden">Select a severity before you can verify this report.</p>
         <button type="submit" id="verify-btn" class="btn-primary btn-block opacity-50 cursor-not-allowed" style="margin-top:0.75rem;" disabled>Verify</button>
       </form>
 
+      <script src="/static/js/employee-search.js"></script>
       <script>
         (function () {
           const form = document.getElementById("verify-form");
           const select = document.getElementById("verify-severity");
           const btn = document.getElementById("verify-btn");
           const msg = document.getElementById("severity-required-msg");
+          const approverHidden = document.getElementById("id_approver_keycloak_id");
           if (!form || !select || !btn) return;
           function updateState() {
-            const ok = Boolean(select.value);
+            const ok = Boolean(select.value) && Boolean(approverHidden && approverHidden.value);
             btn.disabled = !ok;
             btn.classList.toggle("opacity-50", !ok);
             btn.classList.toggle("cursor-not-allowed", !ok);
-            msg.classList.toggle("hidden", ok);
+            msg.classList.toggle("hidden", Boolean(select.value));
           }
           select.addEventListener("change", updateState);
+          if (approverHidden) approverHidden.addEventListener("change", updateState);
           form.addEventListener("submit", function (e) {
             if (!select.value) {
               e.preventDefault();

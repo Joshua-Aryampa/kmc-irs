@@ -1,170 +1,161 @@
 <!DOCTYPE html>
-
 <html>
-
 <head>
-
   <meta charset="UTF-8">
-
   <style>
-
-    @page {
-
-      size: A4;
-
-      margin: 1.5cm;
-
-    }
-
+    @page { size: A4; margin: 1.5cm; }
     body { font-family: Helvetica, Arial, sans-serif; font-size: 11pt; color: #111; }
-
     h1 { font-size: 16pt; text-align: center; }
-
     h2 { font-size: 12pt; margin-top: 18px; border-bottom: 1px solid #333; page-break-after: avoid; }
-
-    table { width: 100%; border-collapse: collapse; margin: 8px 0; table-layout: fixed; }
-
-    th, td { border: 1px solid #999; padding: 6px; text-align: left; vertical-align: top; word-wrap: break-word; }
-
+    table { width: 100%; border-collapse: collapse; margin: 8px 0; }
+    th, td { border: 1px solid #999; padding: 5px 6px; text-align: left; vertical-align: top; }
     .meta td { border: none; padding: 2px 0; }
-
-    .confirm-table { page-break-inside: avoid; }
-
+    .confirm-table { page-break-inside: avoid; font-size: 9pt; }
+    .logo { text-align: center; margin-bottom: 12px; }
+    .logo img { height: 48px; width: auto; }
+    .sign-table col.col-role { width: 14%; }
+    .sign-table col.col-person { width: 28%; }
+    .sign-table col.col-signature { width: 32%; }
+    .sign-table col.col-date { width: 26%; }
+    .sign-table th { font-size: 8.5pt; font-weight: bold; background: #f3f4f6; }
+    .sign-table td { word-wrap: break-word; }
+    .sign-table img { max-height: 44px; max-width: 120px; }
+    .sign-name { font-weight: bold; font-size: 11pt; font-style: italic; }
+    .person-name { font-weight: bold; display: block; margin-bottom: 2px; }
+    .person-designation { font-size: 8.5pt; color: #444; }
     .photo { page-break-inside: avoid; margin: 12px 0; text-align: center; }
-
     .photo img { max-width: 100%; max-height: 320px; }
-
-    .timeline-table { font-size: 9pt; page-break-inside: auto; }
-
+    .timeline-table { font-size: 9pt; page-break-inside: auto; table-layout: fixed; }
     .timeline-table tr { page-break-inside: avoid; }
-
     .timeline-table th:nth-child(1), .timeline-table td:nth-child(1) { width: 22%; }
-
     .timeline-table th:nth-child(2), .timeline-table td:nth-child(2) { width: 20%; }
-
     .timeline-table th:nth-child(3), .timeline-table td:nth-child(3) { width: 18%; }
-
     .timeline-table th:nth-child(4), .timeline-table td:nth-child(4) { width: 40%; }
-
   </style>
-
 </head>
-
 <body>
+
+  {% if logo_url %}
+  <div class="logo"><img src="{{ logo_url }}" alt="Kiira Motors Corporation"></div>
+  {% endif %}
 
   <h1>INCIDENT REPORT</h1>
 
   <table class="meta">
-
     <tr><td><strong>Incident ID:</strong> {{ incident.incident_id }}</td><td><strong>Status:</strong> Closed</td></tr>
-
     <tr><td><strong>Location:</strong> {{ incident.scene_location }}</td><td><strong>Closed:</strong> {{ incident.closed_at|date:"d M Y H:i" }}</td></tr>
-
     <tr><td><strong>Incident date/time:</strong> {{ incident.incident_date }} {{ incident.incident_time }}</td><td><strong>Severity:</strong> {{ incident.get_severity_display }}</td></tr>
-
     <tr><td colspan="2"><strong>Late submission:</strong> {% if incident.is_late_submission %}Yes — {{ incident.late_reason }}{% else %}No{% endif %}</td></tr>
-
     <tr><td colspan="2"><strong>Involves:</strong> {{ incident.involves_labels|join:", " }}</td></tr>
-
     <tr><td colspan="2"><strong>Classification:</strong> {{ incident.classification_labels|join:", " }}</td></tr>
-
   </table>
-
-
 
   <h2>Description</h2>
-
   <p>{{ incident.description|linebreaksbr }}</p>
-
   <h2>Possible causes</h2><p>{{ incident.possible_causes|linebreaksbr }}</p>
-
-  <h2>Corrective actions taken</h2><p>{{ incident.corrective_actions_taken|linebreaksbr }}</p>
-
+  <h2>Corrective actions taken</h2><p>{{ incident.corrective_actions_taken|linebreaksbr|default:"Not provided" }}</p>
   <h2>Immediate actions</h2><p>{{ incident.immediate_actions|linebreaksbr }}</p>
-
-  <h2>Effect on the process</h2><p>{{ incident.effect_on_process|linebreaksbr }}</p>
-
+  <h2>Effect of the incident</h2><p>{{ incident.effect_on_process|linebreaksbr }}</p>
   <h2>Recommendations</h2><p>{{ incident.recommendations|linebreaksbr }}</p>
 
-
-
   <h2>Witnesses</h2>
-
   <table>
-
-    <tr><th>Name</th><th>Designation</th></tr>
-
+    <tr><th>Name</th></tr>
     {% for w in incident.witnesses.all %}
-
-    <tr><td>{{ w.name }}</td><td>{{ w.designation }}</td></tr>
-
+    <tr><td>{{ w.name }}</td></tr>
     {% endfor %}
-
   </table>
 
-
-
-  <h2>Digital confirmations</h2>
-
-  <table class="confirm-table">
-
-    <tr><th>Role</th><th>Name</th><th>Designation</th><th>Confirmed at</th></tr>
-
-    <tr><td>Reporter</td><td>{{ incident.reporter.full_name }}</td><td>{{ incident.reporter.designation }}</td><td>{{ incident.reporter_confirmed_at|date:"d M Y H:i" }}</td></tr>
-
-    <tr><td>Verifier</td><td>{{ incident.verifier.full_name }}</td><td>{{ incident.verifier.designation }}</td><td>{{ incident.verifier_confirmed_at|date:"d M Y H:i" }}</td></tr>
-
-    <tr><td>Approver</td><td>{{ incident.approver.full_name }}</td><td>{{ incident.approver.designation }}</td><td>{{ incident.approver_confirmed_at|date:"d M Y H:i" }}</td></tr>
-
+  <h2>Signatories</h2>
+  <table class="confirm-table sign-table">
+    <colgroup>
+      <col class="col-role">
+      <col class="col-person">
+      <col class="col-signature">
+      <col class="col-date">
+    </colgroup>
+    <tr>
+      <th>Role</th>
+      <th>Name</th>
+      <th>Signature</th>
+      <th>Signed at</th>
+    </tr>
+    <tr>
+      <td>Reporter</td>
+      <td><span class="person-name">{{ reporter_sign.name }}</span></td>
+      <td>
+        {% if reporter_sign.confirmed %}
+          {% if reporter_sign.image_url %}
+          <img src="{{ reporter_sign.image_url }}" alt="Reporter signature">
+          {% else %}
+          <span class="sign-name">{{ reporter_sign.name }}</span>
+          {% endif %}
+        {% else %}
+        Pending
+        {% endif %}
+      </td>
+      <td>{{ incident.reporter_confirmed_at|date:"d M Y H:i"|default:"—" }}</td>
+    </tr>
+    <tr>
+      <td>Verifier</td>
+      <td>
+        {% if verifier_sign %}
+        <span class="person-name">{{ verifier_sign.name }}</span>
+        {% else %}—{% endif %}
+      </td>
+      <td>
+        {% if verifier_sign and verifier_sign.confirmed %}
+          {% if verifier_sign.image_url %}
+          <img src="{{ verifier_sign.image_url }}" alt="Verifier signature">
+          {% else %}
+          <span class="sign-name">{{ verifier_sign.name }}</span>
+          {% endif %}
+        {% elif verifier_sign %}Pending{% else %}—{% endif %}
+      </td>
+      <td>{{ incident.verifier_confirmed_at|date:"d M Y H:i"|default:"—" }}</td>
+    </tr>
+    <tr>
+      <td>Approver</td>
+      <td>
+        {% if approver_sign %}
+        <span class="person-name">{{ approver_sign.name }}</span>
+        {% else %}—{% endif %}
+      </td>
+      <td>
+        {% if approver_sign and approver_sign.confirmed %}
+          {% if approver_sign.image_url %}
+          <img src="{{ approver_sign.image_url }}" alt="Approver signature">
+          {% else %}
+          <span class="sign-name">{{ approver_sign.name }}</span>
+          {% endif %}
+        {% elif approver_sign %}Pending{% else %}—{% endif %}
+      </td>
+      <td>{{ incident.approver_confirmed_at|date:"d M Y H:i"|default:"—" }}</td>
+    </tr>
   </table>
-
-
 
   <h2>Photos</h2>
-
   {% for item in photos %}
-
   <div class="photo">
-
     <p><strong>Photo {{ forloop.counter }} of {{ photos|length }}</strong></p>
-
     {% if item.file_url %}<img src="{{ item.file_url }}" alt="Photo">{% else %}<p><em>Photo file unavailable.</em></p>{% endif %}
-
   </div>
-
   {% empty %}
-
   <p><em>No photos attached.</em></p>
-
   {% endfor %}
 
-
-
   <h2>Audit timeline</h2>
-
   <table class="timeline-table">
-
     <tr><th>When</th><th>Actor</th><th>Event</th><th>Detail</th></tr>
-
     {% for e in timeline %}
-
     <tr>
-
       <td>{{ e.created_at|date:"d M Y H:i" }}</td>
-
       <td>{% if e.actor %}{{ e.actor.full_name }}{% else %}—{% endif %}</td>
-
       <td>{{ e.get_entry_type_display }}</td>
-
       <td>{{ e.message|default:"—" }}</td>
-
     </tr>
-
     {% endfor %}
-
   </table>
 
 </body>
-
 </html>
-

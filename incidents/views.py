@@ -2,30 +2,26 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import Count, Q
-from django.http import HttpResponse, HttpResponseForbidden
+from django.http import HttpResponse, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
-from django.utils import timezone
+from django.views.decorators.http import require_GET
 
-from accounts.models import Role, User
 from incidents.forms import (
     CommentForm,
     ForwardCommentForm,
     IncidentForm,
     PhotoUploadForm,
-    ReassignForm,
-    UserAdminForm,
-    VerifierSeverityForm,
+    VerifierActionForm,
     witness_formset,
 )
 from incidents.models import Incident, IncidentPhoto, IncidentStatus, Severity, TimelineEntryType
-from incidents.permissions import incidents_for_user, queue_visibility, user_can_view_incident
-from incidents.services.routing import eligible_reassignments
+from incidents.permissions import incidents_for_user, user_can_view_incident
+from incidents.services.keycloak import search_employees
 from incidents.services.workflow import (
     WorkflowError,
     add_comment,
     approve_incident,
     forward_to_reporter,
-    reassign,
     reject_approval,
     reject_verification,
     submit_incident,
@@ -33,23 +29,13 @@ from incidents.services.workflow import (
 )
 from incidents.services import pdf as pdf_service
 from incidents.services import export as export_service
-
-
-def _forbidden_if_not(view_fn):
-    def wrapper(request, *args, **kwargs):
-        incident = get_object_or_404(Incident, pk=kwargs.get("pk") or args[0])
-        if not user_can_view_incident(request.user, incident):
-            return HttpResponseForbidden("You do not have permission to view this incident.")
-        return view_fn(request, incident, *args[1:], **kwargs)
-
-    return wrapper
+from incidents.utils import paginate_queryset
 
 
 @login_required
 def dashboard(request):
     qs = incidents_for_user(request.user)
     status = request.GET.get("status")
-    location = request.GET.get("location")
     severity = request.GET.get("severity")
     late = request.GET.get("late")
     date_from = request.GET.get("date_from")
@@ -57,8 +43,6 @@ def dashboard(request):
 
     if status:
         qs = qs.filter(status=status)
-    if location:
-        qs = qs.filter(scene_location_id=location)
     if severity:
         qs = qs.filter(severity=severity)
     if late == "1":
@@ -76,25 +60,32 @@ def dashboard(request):
         "late": qs.filter(is_late_submission=True).count(),
     }
     by_location = (
-        qs.values("scene_location__name").annotate(c=Count("id")).order_by("scene_location__name")
+        qs.exclude(scene_location="")
+        .values("scene_location")
+        .annotate(c=Count("id"))
+        .order_by("scene_location")
     )
 
     if request.GET.get("export") == "csv":
         return export_service.incidents_csv(qs)
 
-    from incidents.models import Location
+    page_obj = paginate_queryset(request, qs.select_related("reporter", "verifier", "approver"))
+
+    filter_query = request.GET.copy()
+    filter_query.pop("page", None)
 
     return render(
         request,
         "incidents/dashboard.html",
         {
-            "incidents": qs[:200],
+            "page_obj": page_obj,
+            "incidents": page_obj.object_list,
             "summary": summary,
             "by_location": by_location,
-            "locations": Location.objects.filter(is_active=True),
             "statuses": IncidentStatus.choices,
             "severities": Severity.choices,
             "filters": request.GET,
+            "filter_query": filter_query.urlencode(),
         },
     )
 
@@ -102,29 +93,54 @@ def dashboard(request):
 @login_required
 def my_queue(request):
     user = request.user
-    visibility = queue_visibility(user)
-    verify_qs = Incident.objects.filter(verifier=user, status=IncidentStatus.PENDING_VERIFICATION)
-    approve_qs = Incident.objects.filter(approver=user, status=IncidentStatus.PENDING_APPROVAL)
-    forward_qs = Incident.objects.filter(verifier=user, status=IncidentStatus.RETURNED_TO_VERIFIER)
-    returned_qs = Incident.objects.filter(reporter=user, status=IncidentStatus.RETURNED_TO_REPORTER)
+    sections = [
+        ("verify", Incident.objects.filter(verifier=user, status=IncidentStatus.PENDING_VERIFICATION)),
+        ("approve", Incident.objects.filter(approver=user, status=IncidentStatus.PENDING_APPROVAL)),
+        ("forward", Incident.objects.filter(verifier=user, status=IncidentStatus.RETURNED_TO_VERIFIER)),
+        ("returned", Incident.objects.filter(reporter=user, status=IncidentStatus.RETURNED_TO_REPORTER)),
+    ]
+    queue_pages = {}
+    filter_query = request.GET.copy()
+    for key in ("page_verify", "page_approve", "page_forward", "page_returned"):
+        filter_query.pop(key, None)
+    shared_query = filter_query.urlencode()
+
+    for key, queryset in sections:
+        queue_pages[key] = paginate_queryset(
+            request,
+            queryset.select_related("reporter", "verifier", "approver"),
+            page_param=f"page_{key}",
+        )
 
     return render(
         request,
         "incidents/queue.html",
         {
-            "verify_qs": verify_qs,
-            "approve_qs": approve_qs,
-            "forward_qs": forward_qs,
-            "returned_qs": returned_qs,
-            "queue_visibility": visibility,
+            "verify_page": queue_pages["verify"],
+            "approve_page": queue_pages["approve"],
+            "forward_page": queue_pages["forward"],
+            "returned_page": queue_pages["returned"],
+            "verify_qs": queue_pages["verify"].object_list,
+            "approve_qs": queue_pages["approve"].object_list,
+            "forward_qs": queue_pages["forward"].object_list,
+            "returned_qs": queue_pages["returned"].object_list,
+            "filter_query": shared_query,
         },
     )
 
 
 @login_required
+@require_GET
+def employee_search(request):
+    query = request.GET.get("q", "")
+    results = search_employees(query, limit=10)
+    return JsonResponse({"results": results})
+
+
+@login_required
 def incident_create(request):
     if not request.user.can_report():
-        messages.error(request, "Your role cannot create incident reports.")
+        messages.error(request, "Your account cannot create incident reports.")
         return redirect("dashboard")
 
     from incidents.classifications import INVOLVE_GROUPS
@@ -132,8 +148,10 @@ def incident_create(request):
 
     if request.method == "POST":
         submitting = request.POST.get("action") == "submit"
-        draft_form = IncidentForm(request.POST, submitting=False)
-        submit_form = IncidentForm(request.POST, submitting=True) if submitting else draft_form
+        draft_form = IncidentForm(request.POST, submitting=False, reporter=request.user)
+        submit_form = (
+            IncidentForm(request.POST, submitting=True, reporter=request.user) if submitting else draft_form
+        )
         form = submit_form if submitting else draft_form
         photo_form = PhotoUploadForm(request.POST, request.FILES)
         incident = None
@@ -178,7 +196,8 @@ def incident_create(request):
                     photo_errors.append("At least one photo is required before you can submit the report.")
                 elif not photo_errors:
                     try:
-                        submit_incident(incident, request.user)
+                        verifier = submit_form.cleaned_data["selected_verifier"]
+                        submit_incident(incident, request.user, verifier)
                         messages.success(
                             request, f"Incident {incident.incident_id} submitted for verification."
                         )
@@ -203,13 +222,13 @@ def incident_create(request):
                 "is_create": incident is None,
                 "involve_groups": INVOLVE_GROUPS,
                 "late_minutes": settings.INCIDENT_LATE_MINUTES,
+                "show_verifier_search": True,
             },
         )
-    else:
-        form = IncidentForm()
-        formset = witness_formset()
-        photo_form = PhotoUploadForm()
-        incident = None
+
+    form = IncidentForm(reporter=request.user)
+    formset = witness_formset()
+    photo_form = PhotoUploadForm()
 
     return render(
         request,
@@ -218,10 +237,11 @@ def incident_create(request):
             "form": form,
             "formset": formset,
             "photo_form": photo_form,
-            "incident": incident,
+            "incident": None,
             "is_create": True,
             "involve_groups": INVOLVE_GROUPS,
             "late_minutes": settings.INCIDENT_LATE_MINUTES,
+            "show_verifier_search": True,
         },
     )
 
@@ -236,8 +256,14 @@ def incident_edit(request, pk):
 
     if request.method == "POST":
         submitting = request.POST.get("action") == "submit"
-        draft_form = IncidentForm(request.POST, instance=incident, submitting=False)
-        submit_form = IncidentForm(request.POST, instance=incident, submitting=True) if submitting else draft_form
+        draft_form = IncidentForm(
+            request.POST, instance=incident, submitting=False, reporter=request.user
+        )
+        submit_form = (
+            IncidentForm(request.POST, instance=incident, submitting=True, reporter=request.user)
+            if submitting
+            else draft_form
+        )
         form = submit_form if submitting else draft_form
         formset = witness_formset(instance=incident, data=request.POST)
         photo_form = PhotoUploadForm(request.POST, request.FILES)
@@ -267,7 +293,8 @@ def incident_edit(request, pk):
                     photo_errors.append("At least one photo is required before you can submit the report.")
                 elif not photo_errors:
                     try:
-                        submit_incident(incident, request.user)
+                        verifier = submit_form.cleaned_data["selected_verifier"]
+                        submit_incident(incident, request.user, verifier)
                         messages.success(request, f"Incident {incident.incident_id} submitted.")
                         return redirect("incident_detail", pk=incident.pk)
                     except Exception as exc:
@@ -290,12 +317,13 @@ def incident_edit(request, pk):
                 "is_create": False,
                 "involve_groups": INVOLVE_GROUPS,
                 "late_minutes": settings.INCIDENT_LATE_MINUTES,
+                "show_verifier_search": True,
             },
         )
-    else:
-        form = IncidentForm(instance=incident)
-        formset = witness_formset(instance=incident)
-        photo_form = PhotoUploadForm()
+
+    form = IncidentForm(instance=incident, reporter=request.user)
+    formset = witness_formset(instance=incident)
+    photo_form = PhotoUploadForm()
 
     return render(
         request,
@@ -308,6 +336,7 @@ def incident_edit(request, pk):
             "is_create": False,
             "involve_groups": INVOLVE_GROUPS,
             "late_minutes": settings.INCIDENT_LATE_MINUTES,
+            "show_verifier_search": True,
         },
     )
 
@@ -328,7 +357,10 @@ def _save_photos(incident, photos):
 
 @login_required
 def incident_detail(request, pk):
-    incident = get_object_or_404(Incident, pk=pk)
+    incident = get_object_or_404(
+        Incident.objects.select_related("reporter", "verifier", "approver"),
+        pk=pk,
+    )
     if not user_can_view_incident(request.user, incident):
         return HttpResponseForbidden("You do not have permission to view this incident.")
 
@@ -339,11 +371,6 @@ def incident_detail(request, pk):
         "forward_form": ForwardCommentForm(
             initial={"comment": incident.pending_approver_comment or incident.return_comment}
         ),
-        "reassign_form": (
-            ReassignForm(incident)
-            if request.user.role == Role.ADMIN and not incident.is_closed
-            else None
-        ),
         "can_edit": incident.reporter_id == request.user.id and incident.is_editable_by_reporter,
         "can_verify": request.user.id == incident.verifier_id
         and incident.status == IncidentStatus.PENDING_VERIFICATION,
@@ -353,22 +380,27 @@ def incident_detail(request, pk):
         and incident.status == IncidentStatus.RETURNED_TO_VERIFIER,
     }
     if ctx["can_verify"]:
-        ctx["severity_form"] = VerifierSeverityForm(initial={"severity": incident.severity or None})
+        ctx["verify_form"] = VerifierActionForm(incident=incident)
     return render(request, "incidents/detail.html", ctx)
 
 
 @login_required
 def incident_verify(request, pk):
     incident = get_object_or_404(Incident, pk=pk)
-    form = VerifierSeverityForm(request.POST)
+    form = VerifierActionForm(request.POST, incident=incident)
     if form.is_valid():
         try:
-            verify_incident(incident, request.user, form.cleaned_data["severity"])
+            verify_incident(
+                incident,
+                request.user,
+                form.cleaned_data["severity"],
+                form.cleaned_data["selected_approver"],
+            )
             messages.success(request, "Incident verified and sent for approval.")
         except WorkflowError as exc:
             messages.error(request, str(exc))
     else:
-        messages.error(request, "Select a severity before verifying.")
+        messages.error(request, "Select severity and approver before verifying.")
     return redirect("incident_detail", pk=pk)
 
 
@@ -469,70 +501,3 @@ def photo_delete(request, pk, photo_pk):
         photo.delete()
         messages.success(request, "Photo removed.")
     return redirect("incident_edit", pk=pk)
-
-
-# --- Admin user management ---
-
-
-@login_required
-def admin_users(request):
-    if request.user.role != Role.ADMIN:
-        return HttpResponseForbidden()
-    return render(request, "incidents/admin/users_list.html", {"users": User.objects.all().select_related("assigned_location")})
-
-
-@login_required
-def admin_user_create(request):
-    if request.user.role != Role.ADMIN:
-        return HttpResponseForbidden()
-    if request.method == "POST":
-        form = UserAdminForm(request.POST)
-        if form.is_valid():
-            user = form.save()
-            if not form.cleaned_data.get("password"):
-                messages.warning(request, "User created without password change — set password if needed.")
-            messages.success(request, f"User {user.username} created.")
-            return redirect("admin_users")
-    else:
-        form = UserAdminForm()
-    return render(request, "incidents/admin/user_form.html", {"form": form, "title": "Create user"})
-
-
-@login_required
-def admin_user_edit(request, user_pk):
-    if request.user.role != Role.ADMIN:
-        return HttpResponseForbidden()
-    user = get_object_or_404(User, pk=user_pk)
-    if request.method == "POST":
-        form = UserAdminForm(request.POST, instance=user)
-        if form.is_valid():
-            form.save()
-            messages.success(request, "User updated.")
-            return redirect("admin_users")
-    else:
-        form = UserAdminForm(instance=user)
-    return render(request, "incidents/admin/user_form.html", {"form": form, "title": f"Edit {user.username}"})
-
-
-@login_required
-def admin_reassign(request, pk):
-    if request.user.role != Role.ADMIN:
-        return HttpResponseForbidden()
-    incident = get_object_or_404(Incident, pk=pk)
-    role_kind = (request.POST.get("role_kind") if request.method == "POST" else request.GET.get("role_kind")) or "verifier"
-    form = ReassignForm(incident, request.POST or None)
-    form.set_assignee_queryset(eligible_reassignments(incident, role_kind))
-    if request.method == "POST" and form.is_valid():
-        try:
-            reassign(
-                incident,
-                request.user,
-                form.cleaned_data["role_kind"],
-                form.cleaned_data["new_assignee"],
-                form.cleaned_data["reason"],
-            )
-            messages.success(request, "Assignment updated.")
-            return redirect("incident_detail", pk=pk)
-        except WorkflowError as exc:
-            messages.error(request, str(exc))
-    return render(request, "incidents/admin/reassign.html", {"incident": incident, "form": form})

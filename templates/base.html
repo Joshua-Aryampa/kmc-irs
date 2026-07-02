@@ -15,7 +15,7 @@
   <nav class="app-nav sticky top-0 z-40">
     <div class="app-container app-nav-inner">
       <a href="{% url 'dashboard' %}" class="app-brand">
-        <span class="app-brand-mark">KMC</span>
+        <img src="/static/img/kmc-icon.png" alt="KMC" class="app-brand-logo">
         <span class="app-brand-text">Incident Reporting</span>
       </a>
       <div class="nav-links">
@@ -29,10 +29,7 @@
           <span class="queue-badge">{{ nav_counts.queue_total }}</span>
           {% endif %}
         </a>
-        {% if user.role == 'ADMIN' %}
-        <a href="{% url 'admin_users' %}" class="nav-link">Users</a>
-        {% endif %}
-        <span class="nav-user">{{ user.full_name }} · {{ user.get_role_display }}</span>
+        <span class="nav-user">{{ user.full_name }}</span>
         <form method="post" action="{% url 'logout' %}">{% csrf_token %}
           <button type="submit" class="btn-logout">Logout</button>
         </form>

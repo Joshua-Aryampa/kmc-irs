@@ -2,8 +2,20 @@ import base64
 from io import BytesIO
 from pathlib import Path
 
+from django.conf import settings
 from django.template.loader import render_to_string
 from xhtml2pdf import pisa
+
+
+def _file_data_uri(path, mime="image/png"):
+    try:
+        file_path = Path(path)
+    except (TypeError, ValueError):
+        return ""
+    if not file_path.is_file():
+        return ""
+    encoded = base64.b64encode(file_path.read_bytes()).decode("ascii")
+    return f"data:{mime};base64,{encoded}"
 
 
 def _photo_data_uri(photo):
@@ -14,8 +26,30 @@ def _photo_data_uri(photo):
     if not path.is_file():
         return ""
     mime = photo.mime_type or "image/jpeg"
-    encoded = base64.b64encode(path.read_bytes()).decode("ascii")
-    return f"data:{mime};base64,{encoded}"
+    return _file_data_uri(path, mime)
+
+
+def _signatory_payload(image_field, person, confirmed_at):
+    if not person:
+        return None
+    payload = {
+        "name": person.full_name,
+        "designation": person.designation,
+        "image_url": "",
+        "pending_label": "—",
+        "confirmed": bool(confirmed_at),
+    }
+    if not confirmed_at:
+        if person:
+            payload["pending_label"] = "Pending"
+        return payload
+    if image_field:
+        try:
+            payload["image_url"] = _file_data_uri(image_field.path)
+            return payload
+        except (ValueError, AttributeError):
+            pass
+    return payload
 
 
 def render_incident_pdf(request, incident):
@@ -28,6 +62,16 @@ def render_incident_pdf(request, incident):
             "incident": incident,
             "timeline": incident.timeline_entries.select_related("actor"),
             "photos": photos,
+            "logo_url": _file_data_uri(settings.BASE_DIR / "static" / "img" / "kmc-logo-full.png"),
+            "reporter_sign": _signatory_payload(
+                incident.reporter_signature, incident.reporter, incident.reporter_confirmed_at
+            ),
+            "verifier_sign": _signatory_payload(
+                incident.verifier_signature, incident.verifier, incident.verifier_confirmed_at
+            ),
+            "approver_sign": _signatory_payload(
+                incident.approver_signature, incident.approver, incident.approver_confirmed_at
+            ),
         },
     )
     result = BytesIO()

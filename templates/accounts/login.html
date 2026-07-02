@@ -4,20 +4,25 @@
 <div class="login-shell">
   <div class="login-card">
     <div class="login-brand">
-      <div class="login-brand-icon">KMC</div>
+      <img src="/static/img/kmc-logo-full.png" alt="Kiira Motors Corporation" class="login-brand-logo">
       <div>
         <h1>Sign in</h1>
-        <p class="login-tagline">Kiira Vehicle Plant Incident Reporting</p>
+        <p class="login-tagline">Kiira Motors Corporation — Incident Reporting</p>
       </div>
     </div>
+    {% if keycloak_enabled %}
+    <a href="{% url 'oidc_authentication_init' %}" class="btn-primary btn-block">Continue with Keycloak</a>
+    {% else %}
     <form method="post" class="login-form">
       {% csrf_token %}
+      <p class="login-dev-note">Local development login (set KEYCLOAK_SERVER_URL for SSO).</p>
       <label class="form-label">Username</label>
       <input name="username" type="text" required class="input-field" autofocus>
       <label class="form-label">Password</label>
       <input name="password" type="password" required class="input-field">
       <button type="submit" class="btn-primary btn-block">Login</button>
     </form>
+    {% endif %}
   </div>
 </div>
 {% endblock %}

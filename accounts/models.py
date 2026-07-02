@@ -3,7 +3,7 @@ from django.db import models
 
 
 class Role(models.TextChoices):
-    WORKER = "WORKER", "Worker"
+    WORKER = "WORKER", "Employee"
     SUPERVISOR = "SUPERVISOR", "Supervisor"
     SHOP_FLOOR_MANAGER = "SHOP_FLOOR_MANAGER", "Shop Floor Manager"
     DIRECTOR = "DIRECTOR", "Director of Production"
@@ -12,15 +12,9 @@ class Role(models.TextChoices):
 
 
 class User(AbstractUser):
-    designation = models.CharField(max_length=255)
+    keycloak_id = models.CharField(max_length=255, unique=True, null=True, blank=True)
+    designation = models.CharField(max_length=255, blank=True, default="")
     role = models.CharField(max_length=32, choices=Role.choices, default=Role.WORKER)
-    assigned_location = models.ForeignKey(
-        "incidents.Location",
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="assigned_users",
-    )
 
     class Meta:
         ordering = ["last_name", "first_name", "username"]
@@ -31,19 +25,10 @@ class User(AbstractUser):
         return name or self.username
 
     def can_report(self):
-        return self.role in {
-            Role.WORKER,
-            Role.SUPERVISOR,
-            Role.SHOP_FLOOR_MANAGER,
-        }
+        return self.role != Role.ADMIN
 
-    def clean(self):
-        from django.core.exceptions import ValidationError
-
-        if self.role in {Role.SUPERVISOR, Role.SHOP_FLOOR_MANAGER} and not self.assigned_location_id:
-            raise ValidationError("Supervisor and Shop Floor Manager must have an assigned location.")
-        if self.role not in {Role.SUPERVISOR, Role.SHOP_FLOOR_MANAGER} and self.assigned_location_id:
-            raise ValidationError("Only Supervisor and Shop Floor Manager may have an assigned location.")
+    def has_plant_wide_access(self):
+        return self.role in {Role.ADMIN, Role.CEO}
 
     def __str__(self):
         return f"{self.full_name} ({self.get_role_display()})"

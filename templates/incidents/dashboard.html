@@ -4,7 +4,7 @@
 <div class="page-header page-header--center">
   <div>
     <h1 class="page-title">Dashboard</h1>
-    <p class="page-subtitle">Overview of incidents across your scope</p>
+    <p class="page-subtitle">{% if user.has_plant_wide_access %}Plant-wide incident overview{% else %}Incidents you reported, verified, or approved{% endif %}</p>
   </div>
   {% if user.can_report %}
   <div class="page-actions">
@@ -29,15 +29,6 @@
         <option value="">All</option>
         {% for val, label in statuses %}
         <option value="{{ val }}" {% if filters.status == val %}selected{% endif %}>{{ label }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <div class="filter-field">
-      <label class="form-label form-label--compact">Location</label>
-      <select name="location" class="input-field input-field--compact">
-        <option value="">All</option>
-        {% for loc in locations %}
-        <option value="{{ loc.id }}" {% if filters.location == loc.id|stringformat:'s' %}selected{% endif %}>{{ loc.name }}</option>
         {% endfor %}
       </select>
     </div>
@@ -105,4 +96,6 @@
   <p class="empty-state">No incidents found.</p>
   {% endfor %}
 </div>
+
+{% include "incidents/_pagination.html" with page_obj=page_obj query_string=filter_query page_param="page" %}
 {% endblock %}

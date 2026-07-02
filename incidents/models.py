@@ -1,18 +1,6 @@
 from django.db import models
 
 
-class Location(models.Model):
-    code = models.CharField(max_length=16, unique=True)
-    name = models.CharField(max_length=128)
-    is_active = models.BooleanField(default=True)
-
-    class Meta:
-        ordering = ["name"]
-
-    def __str__(self):
-        return self.name
-
-
 class IncidentStatus(models.TextChoices):
     DRAFT = "DRAFT", "Draft"
     PENDING_VERIFICATION = "PENDING_VERIFICATION", "Pending verification"
@@ -38,9 +26,7 @@ class Incident(models.Model):
     incident_date = models.DateField(null=True, blank=True)
     incident_time = models.TimeField(null=True, blank=True)
     submitted_at = models.DateTimeField(null=True, blank=True)
-    scene_location = models.ForeignKey(
-        Location, on_delete=models.PROTECT, related_name="incidents", null=True, blank=True
-    )
+    scene_location = models.CharField(max_length=70, blank=True)
 
     involves_person = models.BooleanField(default=False)
     involves_product = models.BooleanField(default=False)
@@ -107,6 +93,10 @@ class Incident(models.Model):
     approver_confirmed_at = models.DateTimeField(null=True, blank=True)
     closed_at = models.DateTimeField(null=True, blank=True)
 
+    reporter_signature = models.ImageField(upload_to="signatures/%Y/%m/", null=True, blank=True)
+    verifier_signature = models.ImageField(upload_to="signatures/%Y/%m/", null=True, blank=True)
+    approver_signature = models.ImageField(upload_to="signatures/%Y/%m/", null=True, blank=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -170,7 +160,7 @@ class Incident(models.Model):
 class Witness(models.Model):
     incident = models.ForeignKey(Incident, on_delete=models.CASCADE, related_name="witnesses")
     name = models.CharField(max_length=255)
-    designation = models.CharField(max_length=255)
+    designation = models.CharField(max_length=255, blank=True, default="")
     sort_order = models.PositiveSmallIntegerField(default=0)
 
     class Meta:
