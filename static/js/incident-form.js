@@ -119,6 +119,9 @@
       bindRemoveButtons(row);
       reindexWitnessRows();
       updateWitnessRemoveState();
+      if (window.initEmployeeSearch) {
+        window.initEmployeeSearch(row);
+      }
     });
   }
 

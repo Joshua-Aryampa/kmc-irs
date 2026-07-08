@@ -3,159 +3,268 @@
 <head>
   <meta charset="UTF-8">
   <style>
-    @page { size: A4; margin: 1.5cm; }
-    body { font-family: Helvetica, Arial, sans-serif; font-size: 11pt; color: #111; }
-    h1 { font-size: 16pt; text-align: center; }
-    h2 { font-size: 12pt; margin-top: 18px; border-bottom: 1px solid #333; page-break-after: avoid; }
-    table { width: 100%; border-collapse: collapse; margin: 8px 0; }
-    th, td { border: 1px solid #999; padding: 5px 6px; text-align: left; vertical-align: top; }
-    .meta td { border: none; padding: 2px 0; }
-    .confirm-table { page-break-inside: avoid; font-size: 9pt; }
-    .logo { text-align: center; margin-bottom: 12px; }
-    .logo img { height: 48px; width: auto; }
-    .sign-table col.col-role { width: 14%; }
-    .sign-table col.col-person { width: 28%; }
-    .sign-table col.col-signature { width: 32%; }
-    .sign-table col.col-date { width: 26%; }
-    .sign-table th { font-size: 8.5pt; font-weight: bold; background: #f3f4f6; }
-    .sign-table td { word-wrap: break-word; }
-    .sign-table img { max-height: 44px; max-width: 120px; }
-    .sign-name { font-weight: bold; font-size: 11pt; font-style: italic; }
-    .person-name { font-weight: bold; display: block; margin-bottom: 2px; }
-    .person-designation { font-size: 8.5pt; color: #444; }
-    .photo { page-break-inside: avoid; margin: 12px 0; text-align: center; }
-    .photo img { max-width: 100%; max-height: 320px; }
-    .timeline-table { font-size: 9pt; page-break-inside: auto; table-layout: fixed; }
-    .timeline-table tr { page-break-inside: avoid; }
-    .timeline-table th:nth-child(1), .timeline-table td:nth-child(1) { width: 22%; }
-    .timeline-table th:nth-child(2), .timeline-table td:nth-child(2) { width: 20%; }
-    .timeline-table th:nth-child(3), .timeline-table td:nth-child(3) { width: 18%; }
-    .timeline-table th:nth-child(4), .timeline-table td:nth-child(4) { width: 40%; }
+    @page { size: A4; margin: 1.2cm 1.4cm; }
+    body, table, td, th, p { font-family: "Times New Roman", Times, serif; font-size: 10pt; color: #000; line-height: 1.35; }
+    .incident-no { font-size: 10pt; margin: 0 0 6pt 0; }
+    .title { text-align: center; font-size: 16pt; font-weight: bold; margin: 0 0 6pt 0; }
+    .intro { font-size: 10.5pt; font-style: italic; margin: 0 0 10pt 0; text-align: justify; }
+    .branding-wrap { text-align: center; margin: 0 0 8pt 0; }
+    .branding-wrap img { width: 417pt; height: auto; }
+    .form-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+    .form-table td, .form-table th { border: 1px solid #000; padding: 4px 6px; vertical-align: top; }
+    .section-head { font-weight: bold; background: #f2f2f2; }
+    .label-cell { font-weight: bold; white-space: nowrap; }
+    .value-cell { word-wrap: break-word; }
+    .field-label { font-weight: bold; }
+    .content-cell { min-height: 24px; }
+    .sign-table { width: 100%; border-collapse: collapse; table-layout: fixed; page-break-inside: avoid; }
+    .sign-table td { border: 1px solid #000; padding: 4px 5px; vertical-align: top; font-size: 9pt; }
+    .sign-role { font-weight: bold; white-space: nowrap; vertical-align: middle; }
+    .sign-label { font-weight: bold; white-space: nowrap; }
+    .sign-name { font-weight: bold; font-style: italic; }
+    .sign-img { max-height: 40px; max-width: 110px; }
+    .no-break { page-break-inside: avoid; }
+    .pdf-section { page-break-inside: avoid; }
+    .pdf-section-title { font-size: 10pt; font-weight: bold; margin: 0 0 5pt 0; }
+    .signatories-section { margin-top: 14pt; }
+    .gallery-section { margin-top: 14pt; }
+    .timeline-section { margin-top: 18pt; }
+    .gallery-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+    .gallery-table td { border: 1px solid #000; padding: 6px; vertical-align: middle; text-align: center; height: 130px; }
+    .gallery-table img { max-width: 95%; max-height: 120px; }
+    .timeline-table { width: 100%; border-collapse: collapse; font-size: 8.5pt; table-layout: fixed; }
+    .timeline-table td, .timeline-table th { border: 1px solid #666; padding: 3px 4px; vertical-align: top; word-wrap: break-word; }
+    .timeline-table th { background: #f2f2f2; }
   </style>
 </head>
 <body>
 
-  {% if logo_url %}
-  <div class="logo"><img src="{{ logo_url }}" alt="Kiira Motors Corporation"></div>
+  <p class="incident-no"><strong>Incident No:</strong> {{ incident.incident_id|default:"-" }}</p>
+
+  {% if branding_url %}
+  <div class="branding-wrap"><img src="{{ branding_url }}" alt="Kiira Motors Corporation"></div>
   {% endif %}
 
-  <h1>INCIDENT REPORT</h1>
+  <p class="title">INCIDENT REPORT</p>
+  <p class="intro">This incident reporting form is a tool for recording and reporting incidents that happen to personnel, products, property, or premises in different scenarios and classifications. Escalation protocols are included at the end.</p>
 
-  <table class="meta">
-    <tr><td><strong>Incident ID:</strong> {{ incident.incident_id }}</td><td><strong>Status:</strong> Closed</td></tr>
-    <tr><td><strong>Location:</strong> {{ incident.scene_location }}</td><td><strong>Closed:</strong> {{ incident.closed_at|date:"d M Y H:i" }}</td></tr>
-    <tr><td><strong>Incident date/time:</strong> {{ incident.incident_date }} {{ incident.incident_time }}</td><td><strong>Severity:</strong> {{ incident.get_severity_display }}</td></tr>
-    <tr><td colspan="2"><strong>Late submission:</strong> {% if incident.is_late_submission %}Yes — {{ incident.late_reason }}{% else %}No{% endif %}</td></tr>
-    <tr><td colspan="2"><strong>Involves:</strong> {{ incident.involves_labels|join:", " }}</td></tr>
-    <tr><td colspan="2"><strong>Classification:</strong> {{ incident.classification_labels|join:", " }}</td></tr>
-  </table>
-
-  <h2>Description</h2>
-  <p>{{ incident.description|linebreaksbr }}</p>
-  <h2>Possible causes</h2><p>{{ incident.possible_causes|linebreaksbr }}</p>
-  <h2>Corrective actions taken</h2><p>{{ incident.corrective_actions_taken|linebreaksbr|default:"Not provided" }}</p>
-  <h2>Immediate actions</h2><p>{{ incident.immediate_actions|linebreaksbr }}</p>
-  <h2>Effect of the incident</h2><p>{{ incident.effect_on_process|linebreaksbr }}</p>
-  <h2>Recommendations</h2><p>{{ incident.recommendations|linebreaksbr }}</p>
-
-  <h2>Witnesses</h2>
-  <table>
-    <tr><th>Name</th></tr>
-    {% for w in incident.witnesses.all %}
-    <tr><td>{{ w.name }}</td></tr>
-    {% endfor %}
-  </table>
-
-  <h2>Signatories</h2>
-  <table class="confirm-table sign-table">
+  <table class="form-table">
     <colgroup>
-      <col class="col-role">
-      <col class="col-person">
-      <col class="col-signature">
-      <col class="col-date">
+      <col width="130">
+      <col width="400">
     </colgroup>
     <tr>
-      <th>Role</th>
-      <th>Name</th>
-      <th>Signature</th>
-      <th>Signed at</th>
+      <td colspan="2" class="section-head">INCIDENT DETAILS</td>
     </tr>
     <tr>
-      <td>Reporter</td>
-      <td><span class="person-name">{{ reporter_sign.name }}</span></td>
-      <td>
-        {% if reporter_sign.confirmed %}
-          {% if reporter_sign.image_url %}
-          <img src="{{ reporter_sign.image_url }}" alt="Reporter signature">
-          {% else %}
-          <span class="sign-name">{{ reporter_sign.name }}</span>
-          {% endif %}
-        {% else %}
-        Pending
-        {% endif %}
-      </td>
-      <td>{{ incident.reporter_confirmed_at|date:"d M Y H:i"|default:"—" }}</td>
+      <td colspan="2" class="section-head">Categorization</td>
+    </tr>
+    {% for group in involve_groups %}
+    <tr>
+      <td class="label-cell">Involves:</td>
+      <td class="value-cell">{{ group.label }}</td>
     </tr>
     <tr>
-      <td>Verifier</td>
-      <td>
-        {% if verifier_sign %}
-        <span class="person-name">{{ verifier_sign.name }}</span>
-        {% else %}—{% endif %}
-      </td>
-      <td>
-        {% if verifier_sign and verifier_sign.confirmed %}
-          {% if verifier_sign.image_url %}
-          <img src="{{ verifier_sign.image_url }}" alt="Verifier signature">
-          {% else %}
-          <span class="sign-name">{{ verifier_sign.name }}</span>
-          {% endif %}
-        {% elif verifier_sign %}Pending{% else %}—{% endif %}
-      </td>
-      <td>{{ incident.verifier_confirmed_at|date:"d M Y H:i"|default:"—" }}</td>
+      <td class="label-cell">Classification:</td>
+      <td class="value-cell">{% if group.classifications %}{{ group.classifications|join:", " }}{% else %}-{% endif %}</td>
+    </tr>
+    {% empty %}
+    <tr>
+      <td class="label-cell">Involves:</td>
+      <td class="value-cell">-</td>
     </tr>
     <tr>
-      <td>Approver</td>
-      <td>
-        {% if approver_sign %}
-        <span class="person-name">{{ approver_sign.name }}</span>
-        {% else %}—{% endif %}
-      </td>
-      <td>
-        {% if approver_sign and approver_sign.confirmed %}
-          {% if approver_sign.image_url %}
-          <img src="{{ approver_sign.image_url }}" alt="Approver signature">
-          {% else %}
-          <span class="sign-name">{{ approver_sign.name }}</span>
-          {% endif %}
-        {% elif approver_sign %}Pending{% else %}—{% endif %}
-      </td>
-      <td>{{ incident.approver_confirmed_at|date:"d M Y H:i"|default:"—" }}</td>
-    </tr>
-  </table>
-
-  <h2>Photos</h2>
-  {% for item in photos %}
-  <div class="photo">
-    <p><strong>Photo {{ forloop.counter }} of {{ photos|length }}</strong></p>
-    {% if item.file_url %}<img src="{{ item.file_url }}" alt="Photo">{% else %}<p><em>Photo file unavailable.</em></p>{% endif %}
-  </div>
-  {% empty %}
-  <p><em>No photos attached.</em></p>
-  {% endfor %}
-
-  <h2>Audit timeline</h2>
-  <table class="timeline-table">
-    <tr><th>When</th><th>Actor</th><th>Event</th><th>Detail</th></tr>
-    {% for e in timeline %}
-    <tr>
-      <td>{{ e.created_at|date:"d M Y H:i" }}</td>
-      <td>{% if e.actor %}{{ e.actor.full_name }}{% else %}—{% endif %}</td>
-      <td>{{ e.get_entry_type_display }}</td>
-      <td>{{ e.message|default:"—" }}</td>
+      <td class="label-cell">Classification:</td>
+      <td class="value-cell">-</td>
     </tr>
     {% endfor %}
+    <tr>
+      <td class="label-cell">Scene Location:</td>
+      <td class="value-cell">{{ incident.scene_location|default:"-" }}</td>
+    </tr>
+    <tr>
+      <td class="label-cell">Time:</td>
+      <td class="value-cell">{% if incident.incident_time %}{{ incident.incident_time|time:"g:i A" }}{% else %}-{% endif %}</td>
+    </tr>
+    <tr>
+      <td class="label-cell">Date:</td>
+      <td class="value-cell">{% if incident.incident_date %}{{ incident.incident_date|date:"d.m.Y" }}{% else %}-{% endif %}</td>
+    </tr>
+    <tr>
+      <td colspan="2" class="section-head">DESCRIPTION OF INCIDENT</td>
+    </tr>
+    <tr>
+      <td class="label-cell">Severity:</td>
+      <td class="value-cell">{% if incident.severity %}{{ incident.get_severity_display }}{% else %}-{% endif %}</td>
+    </tr>
+    <tr>
+      <td class="label-cell">Description:</td>
+      <td class="value-cell content-cell">{{ incident.description|linebreaksbr|default:"-" }}</td>
+    </tr>
+    <tr>
+      <td colspan="2" class="field-label">Possible Causes:</td>
+    </tr>
+    <tr>
+      <td colspan="2" class="content-cell">{{ incident.possible_causes|linebreaksbr|default:"-" }}</td>
+    </tr>
+    <tr>
+      <td colspan="2" class="field-label">Action(s) Taken:</td>
+    </tr>
+    <tr>
+      <td colspan="2" class="content-cell">{{ incident.corrective_actions_taken|linebreaksbr|default:"-" }}</td>
+    </tr>
+    <tr>
+      <td colspan="2" class="field-label">Effect on the Process</td>
+    </tr>
+    <tr>
+      <td colspan="2" class="content-cell">{{ incident.effect_on_process|linebreaksbr|default:"-" }}</td>
+    </tr>
+    <tr>
+      <td colspan="2" class="field-label">Immediate Action(s)</td>
+    </tr>
+    <tr>
+      <td colspan="2" class="content-cell">{{ incident.immediate_actions|linebreaksbr|default:"-" }}</td>
+    </tr>
+    <tr>
+      <td colspan="2" class="field-label">Recommendations:</td>
+    </tr>
+    <tr>
+      <td colspan="2" class="content-cell">{{ incident.recommendations|linebreaksbr|default:"-" }}</td>
+    </tr>
+    {% if incident.witnesses.all %}
+    <tr class="no-break">
+      <td class="field-label">Witness(es):</td>
+      <td class="content-cell">
+        {% for w in incident.witnesses.all %}{{ w.name }}{% if not forloop.last %}; {% endif %}{% endfor %}
+      </td>
+    </tr>
+    {% endif %}
   </table>
+
+  <table width="100%" style="border-collapse: collapse;">
+    <tr><td style="border: none; height: 14pt; line-height: 14pt; font-size: 1pt;">&nbsp;</td></tr>
+  </table>
+
+  <div class="pdf-section signatories-section">
+    <p class="pdf-section-title">Signatories</p>
+    <table class="sign-table">
+      <colgroup>
+        <col width="88">
+        <col width="58">
+        <col width="150">
+        <col width="78">
+        <col width="150">
+      </colgroup>
+      <tr>
+        <td rowspan="2" class="sign-role">Reported&nbsp;by</td>
+        <td class="sign-label">Name:</td>
+        <td>{{ reporter_sign.name|default:incident.reporter.full_name }}</td>
+        <td class="sign-label">Designation:</td>
+        <td>{{ reporter_sign.designation|default:"-" }}</td>
+      </tr>
+      <tr>
+        <td class="sign-label">Signature:</td>
+        <td>
+          {% if reporter_sign.confirmed %}
+            {% if reporter_sign.image_url %}
+            <img src="{{ reporter_sign.image_url }}" alt="Reporter signature" class="sign-img">
+            {% else %}
+            <span class="sign-name">{{ reporter_sign.name }}</span>
+            {% endif %}
+          {% else %}
+          {{ reporter_sign.pending_label|default:"Pending" }}
+          {% endif %}
+        </td>
+        <td class="sign-label">Date:</td>
+        <td>{% if incident.reporter_confirmed_at %}{{ incident.reporter_confirmed_at|date:"d.m.Y g:i A" }}{% else %}-{% endif %}</td>
+      </tr>
+      <tr>
+        <td rowspan="2" class="sign-role">Verified&nbsp;by</td>
+        <td class="sign-label">Name:</td>
+        <td>{% if verifier_sign %}{{ verifier_sign.name }}{% else %}-{% endif %}</td>
+        <td class="sign-label">Designation:</td>
+        <td>{% if verifier_sign %}{{ verifier_sign.designation|default:"-" }}{% else %}-{% endif %}</td>
+      </tr>
+      <tr>
+        <td class="sign-label">Signature:</td>
+        <td>
+          {% if verifier_sign and verifier_sign.confirmed %}
+            {% if verifier_sign.image_url %}
+            <img src="{{ verifier_sign.image_url }}" alt="Verifier signature" class="sign-img">
+            {% else %}
+            <span class="sign-name">{{ verifier_sign.name }}</span>
+            {% endif %}
+          {% elif verifier_sign %}{{ verifier_sign.pending_label }}{% else %}-{% endif %}
+        </td>
+        <td class="sign-label">Date:</td>
+        <td>{% if incident.verifier_confirmed_at %}{{ incident.verifier_confirmed_at|date:"d.m.Y g:i A" }}{% else %}-{% endif %}</td>
+      </tr>
+      <tr>
+        <td rowspan="2" class="sign-role">Approved&nbsp;by</td>
+        <td class="sign-label">Name:</td>
+        <td>{% if approver_sign %}{{ approver_sign.name }}{% else %}-{% endif %}</td>
+        <td class="sign-label">Designation:</td>
+        <td>{% if approver_sign %}{{ approver_sign.designation|default:"-" }}{% else %}-{% endif %}</td>
+      </tr>
+      <tr>
+        <td class="sign-label">Signature:</td>
+        <td>
+          {% if approver_sign and approver_sign.confirmed %}
+            {% if approver_sign.image_url %}
+            <img src="{{ approver_sign.image_url }}" alt="Approver signature" class="sign-img">
+            {% else %}
+            <span class="sign-name">{{ approver_sign.name }}</span>
+            {% endif %}
+          {% elif approver_sign %}{{ approver_sign.pending_label }}{% else %}-{% endif %}
+        </td>
+        <td class="sign-label">Date:</td>
+        <td>{% if incident.approver_confirmed_at %}{{ incident.approver_confirmed_at|date:"d.m.Y g:i A" }}{% else %}-{% endif %}</td>
+      </tr>
+    </table>
+  </div>
+
+  <table width="100%" style="border-collapse: collapse;">
+    <tr><td style="border: none; height: 14pt; line-height: 14pt; font-size: 1pt;">&nbsp;</td></tr>
+  </table>
+
+  <div class="pdf-section gallery-section">
+    <p class="pdf-section-title">Gallery</p>
+    <table class="gallery-table">
+      {% for row in gallery_rows %}
+      <tr>
+        {% for item in row %}
+        <td>{% if item and item.file_url %}<img src="{{ item.file_url }}" alt="Photo">{% else %}&nbsp;{% endif %}</td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+
+  {% if timeline %}
+  <table width="100%" style="border-collapse: collapse;">
+    <tr><td style="border: none; height: 18pt; line-height: 18pt; font-size: 1pt;">&nbsp;</td></tr>
+  </table>
+
+  <div class="pdf-section timeline-section">
+    <p class="pdf-section-title">Audit Timeline</p>
+    <table class="timeline-table">
+      <tr>
+        <th style="width:22%;">When</th>
+        <th style="width:20%;">Actor</th>
+        <th style="width:18%;">Event</th>
+        <th style="width:40%;">Detail</th>
+      </tr>
+      {% for e in timeline %}
+      <tr>
+        <td>{{ e.created_at|date:"d.m.Y g:i A" }}</td>
+        <td>{% if e.actor %}{{ e.actor.full_name }}{% else %}-{% endif %}</td>
+        <td>{{ e.get_entry_type_display }}</td>
+        <td>{{ e.message|default:"-" }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+  {% endif %}
 
 </body>
 </html>

@@ -1,5 +1,10 @@
 (function () {
   function findHidden(input, target) {
+    const wrap = input.closest(".employee-search-wrap, .witness-row");
+    if (wrap) {
+      const scoped = wrap.querySelector('input[type="hidden"][name$="keycloak_id"]');
+      if (scoped) return scoped;
+    }
     const form = input.closest("form");
     if (form) {
       const inForm = form.querySelector(`#id_${target}_keycloak_id`);
@@ -111,5 +116,14 @@
     });
   }
 
-  document.querySelectorAll(".employee-search").forEach(initSearch);
+  function initEmployeeSearch(scope) {
+    (scope || document).querySelectorAll(".employee-search").forEach(function (input) {
+      if (input.dataset.searchBound) return;
+      input.dataset.searchBound = "1";
+      initSearch(input);
+    });
+  }
+
+  window.initEmployeeSearch = initEmployeeSearch;
+  initEmployeeSearch();
 })();

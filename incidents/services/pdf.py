@@ -6,6 +6,11 @@ from django.conf import settings
 from django.template.loader import render_to_string
 from xhtml2pdf import pisa
 
+from incidents.classifications import INVOLVE_GROUPS
+
+
+FORM_REFERENCE = "KMC.DPN.03/26-FM001"
+
 
 def _file_data_uri(path, mime="image/png"):
     try:
@@ -52,6 +57,37 @@ def _signatory_payload(image_field, person, confirmed_at):
     return payload
 
 
+
+def _involve_classification_groups(incident):
+    groups = []
+    for key in ("person", "product", "premises", "property"):
+        group = INVOLVE_GROUPS[key]
+        if not getattr(incident, group["field"]):
+            continue
+        classifications = []
+        for field_name, label in group["classifications"]:
+            if getattr(incident, field_name):
+                classifications.append(label)
+        if getattr(incident, group["other_bool"]):
+            text = (getattr(incident, group["other_text"]) or "").strip()
+            classifications.append(f"Other ({text})" if text else "Other")
+        groups.append({"label": group["label"], "classifications": classifications})
+    return groups
+
+
+
+def _gallery_rows(photos, columns=2):
+    if not photos:
+        return [[None, None], [None, None]]
+    rows = []
+    for index in range(0, len(photos), columns):
+        row = list(photos[index : index + columns])
+        while len(row) < columns:
+            row.append(None)
+        rows.append(row)
+    return rows
+
+
 def render_incident_pdf(request, incident):
     photos = []
     for photo in incident.photos.all():
@@ -62,7 +98,12 @@ def render_incident_pdf(request, incident):
             "incident": incident,
             "timeline": incident.timeline_entries.select_related("actor"),
             "photos": photos,
-            "logo_url": _file_data_uri(settings.BASE_DIR / "static" / "img" / "kmc-logo-full.png"),
+            "gallery_rows": _gallery_rows(photos),
+            "branding_url": _file_data_uri(
+                settings.BASE_DIR / "static" / "img" / "kmc-pdf-branding.png"
+            ),
+            "form_reference": FORM_REFERENCE,
+            "involve_groups": _involve_classification_groups(incident),
             "reporter_sign": _signatory_payload(
                 incident.reporter_signature, incident.reporter, incident.reporter_confirmed_at
             ),

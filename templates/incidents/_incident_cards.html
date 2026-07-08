@@ -1,0 +1,32 @@
+{% for inc in incidents %}
+<a href="{% url 'incident_detail' inc.pk %}" class="incident-card">
+  <div class="incident-card__head">
+    <span class="incident-card__id">{{ inc.incident_id|default:"Draft" }}</span>
+    <span class="status-badge status-{{ inc.status }}">{{ inc.get_status_display }}</span>
+  </div>
+  <dl class="incident-card__attrs">
+    <div class="incident-card__attr">
+      <dt>Location</dt>
+      <dd title="{{ inc.scene_location|default:'—' }}">{{ inc.scene_location|default:"—" }}</dd>
+    </div>
+    <div class="incident-card__attr">
+      <dt>Date</dt>
+      <dd>{{ inc.incident_date|default:"—" }}</dd>
+    </div>
+    <div class="incident-card__attr">
+      <dt>Severity</dt>
+      <dd>{{ inc.get_severity_display|default:"—" }}</dd>
+    </div>
+    <div class="incident-card__attr">
+      <dt>Reporter</dt>
+      <dd title="{{ inc.reporter.full_name }}">{{ inc.reporter.full_name }}</dd>
+    </div>
+    <div class="incident-card__attr">
+      <dt>Late</dt>
+      <dd>{% if inc.is_late_submission %}<span class="incident-late-yes">Yes</span>{% else %}No{% endif %}</dd>
+    </div>
+  </dl>
+</a>
+{% empty %}
+<p class="empty-state">No incidents found.</p>
+{% endfor %}

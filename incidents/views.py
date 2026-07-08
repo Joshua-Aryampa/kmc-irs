@@ -1,7 +1,6 @@
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.db.models import Count, Q
 from django.http import HttpResponse, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_GET
@@ -29,65 +28,64 @@ from incidents.services.workflow import (
 )
 from incidents.services import pdf as pdf_service
 from incidents.services import export as export_service
-from incidents.utils import paginate_queryset
+from incidents.utils import (
+    apply_incident_filters,
+    filter_form_values,
+    incident_summary,
+    incidents_by_location,
+    paginate_queryset,
+)
 
 
-@login_required
-def dashboard(request):
-    qs = incidents_for_user(request.user)
-    status = request.GET.get("status")
-    severity = request.GET.get("severity")
-    late = request.GET.get("late")
-    date_from = request.GET.get("date_from")
-    date_to = request.GET.get("date_to")
-
-    if status:
-        qs = qs.filter(status=status)
-    if severity:
-        qs = qs.filter(severity=severity)
-    if late == "1":
-        qs = qs.filter(is_late_submission=True)
-    if date_from:
-        qs = qs.filter(incident_date__gte=date_from)
-    if date_to:
-        qs = qs.filter(incident_date__lte=date_to)
-
-    summary = {
-        "open": qs.exclude(status=IncidentStatus.CLOSED).count(),
-        "closed": qs.filter(status=IncidentStatus.CLOSED).count(),
-        "pending_verification": qs.filter(status=IncidentStatus.PENDING_VERIFICATION).count(),
-        "pending_approval": qs.filter(status=IncidentStatus.PENDING_APPROVAL).count(),
-        "late": qs.filter(is_late_submission=True).count(),
-    }
-    by_location = (
-        qs.exclude(scene_location="")
-        .values("scene_location")
-        .annotate(c=Count("id"))
-        .order_by("scene_location")
-    )
-
+def _history_context(request, qs):
+    qs = apply_incident_filters(qs, request.GET)
     if request.GET.get("export") == "csv":
         return export_service.incidents_csv(qs)
 
-    page_obj = paginate_queryset(request, qs.select_related("reporter", "verifier", "approver"))
-
+    page_obj = paginate_queryset(
+        request, qs.select_related("reporter", "verifier", "approver")
+    )
     filter_query = request.GET.copy()
     filter_query.pop("page", None)
 
     return render(
         request,
-        "incidents/dashboard.html",
+        "incidents/history.html",
         {
             "page_obj": page_obj,
             "incidents": page_obj.object_list,
-            "summary": summary,
-            "by_location": by_location,
+            "summary": incident_summary(qs),
+            "by_location": incidents_by_location(qs),
             "statuses": IncidentStatus.choices,
             "severities": Severity.choices,
-            "filters": request.GET,
+            "filters": filter_form_values(request.GET),
             "filter_query": filter_query.urlencode(),
         },
     )
+
+
+@login_required
+def dashboard(request):
+    base_qs = incidents_for_user(request.user)
+    recent = base_qs.select_related("reporter", "verifier", "approver")[
+        : settings.DASHBOARD_RECENT_COUNT
+    ]
+
+    return render(
+        request,
+        "incidents/dashboard.html",
+        {
+            "summary": incident_summary(base_qs),
+            "recent_incidents": recent,
+            "total_incidents": base_qs.count(),
+        },
+    )
+
+
+@login_required
+def history(request):
+    qs = incidents_for_user(request.user)
+    return _history_context(request, qs)
 
 
 @login_required
@@ -170,9 +168,9 @@ def incident_create(request):
                     actor=request.user,
                     actor_role=request.user.role,
                 )
-            formset = witness_formset(instance=incident, data=request.POST)
+            formset = witness_formset(instance=incident, data=request.POST, submitting=submitting)
         else:
-            formset = witness_formset(data=request.POST)
+            formset = witness_formset(data=request.POST, submitting=submitting)
 
         formset_valid = formset.is_valid() if draft_valid else False
 
@@ -265,7 +263,7 @@ def incident_edit(request, pk):
             else draft_form
         )
         form = submit_form if submitting else draft_form
-        formset = witness_formset(instance=incident, data=request.POST)
+        formset = witness_formset(instance=incident, data=request.POST, submitting=submitting)
         photo_form = PhotoUploadForm(request.POST, request.FILES)
         photo_errors = []
 

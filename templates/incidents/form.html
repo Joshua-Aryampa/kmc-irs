@@ -23,7 +23,33 @@
     <div class="form-grid-2">
       <div><label class="form-label">Date of incident</label>{{ form.incident_date }}{% if form.incident_date.errors %}<p class="field-error">{{ form.incident_date.errors.0 }}</p>{% endif %}</div>
       <div><label class="form-label">Time of incident</label>{{ form.incident_time }}{% if form.incident_time.errors %}<p class="field-error">{{ form.incident_time.errors.0 }}</p>{% endif %}</div>
-      <div class="span-full"><label class="form-label">Scene location</label>{{ form.scene_location }}{% if form.scene_location.errors %}<p class="field-error">{{ form.scene_location.errors.0 }}</p>{% endif %}</div>
+      <div class="span-full">
+        <label class="form-label">Scene location</label>
+        {{ form.location_choice }}
+        {% if form.location_choice.errors %}<p class="field-error">{{ form.location_choice.errors.0 }}</p>{% endif %}
+        <div id="location-other-wrap" class="form-block{% if form.location_choice.value != "__OTHER__" %} hidden{% endif %}">
+          <label class="form-label">Specify other location</label>
+          {{ form.scene_location_other }}
+          {% if form.scene_location_other.errors %}<p class="field-error">{{ form.scene_location_other.errors.0 }}</p>{% endif %}
+        </div>
+        {{ form.scene_location }}
+        <script>
+          (function () {
+            const choice = document.getElementById("location-choice");
+            const wrap = document.getElementById("location-other-wrap");
+            const other = document.getElementById("location-other");
+            if (!choice || !wrap) return;
+            function syncLocationOther() {
+              const isOther = choice.value === "__OTHER__";
+              wrap.classList.toggle("hidden", !isOther);
+              wrap.hidden = !isOther;
+              if (other) other.required = isOther;
+            }
+            choice.addEventListener("change", syncLocationOther);
+            syncLocationOther();
+          })();
+        </script>
+      </div>
     </div>
     <div class="form-block">
       <p class="section-lead">Involves (select one or more)</p>
@@ -70,9 +96,15 @@
     {{ formset.management_form }}
     <div id="witness-forms">
       {% for f in formset %}
-      <div class="witness-row form-grid-2 border-b" data-form-index="{{ forloop.counter0 }}">
+      <div class="witness-row form-grid-2 border-b employee-search-wrap" data-form-index="{{ forloop.counter0 }}">
         {% for hidden in f.hidden_fields %}{{ hidden }}{% endfor %}
-        <div class="span-full"><label class="form-label">Witness name</label>{{ f.name }}{% if f.name.errors %}<p class="field-error">{{ f.name.errors.0 }}</p>{% endif %}</div>
+        {{ f.keycloak_id }}
+        <div class="span-full">
+          <label class="form-label">Witness</label>
+          {{ f.name }}
+          {% if f.name.errors %}<p class="field-error">{{ f.name.errors.0 }}</p>{% endif %}
+          <p class="field-hint">Type at least 2 letters of their name, then pick from the list.</p>
+        </div>
         <div class="span-full witness-remove-wrap {% if forloop.first %}hidden{% endif %}">
           {% if f.DELETE %}<label class="choice-label btn-danger-text">{{ f.DELETE }} Remove witness</label>{% endif %}
         </div>
@@ -80,10 +112,15 @@
       {% endfor %}
     </div>
     <template id="witness-empty-form">
-      <div class="witness-row form-grid-2 border-b" data-form-index="__prefix__">
+      <div class="witness-row form-grid-2 border-b employee-search-wrap" data-form-index="__prefix__">
         {% with f=formset.empty_form %}
         {% for hidden in f.hidden_fields %}{{ hidden }}{% endfor %}
-        <div class="span-full"><label class="form-label">Witness name</label>{{ f.name }}</div>
+        {{ f.keycloak_id }}
+        <div class="span-full">
+          <label class="form-label">Witness</label>
+          {{ f.name }}
+          <p class="field-hint">Type at least 2 letters of their name, then pick from the list.</p>
+        </div>
         <div class="span-full"><button type="button" class="remove-witness-btn btn-danger-text btn-sm" style="background:none;border:none;padding:0;cursor:pointer;">Remove witness</button></div>
         {% endwith %}
       </div>

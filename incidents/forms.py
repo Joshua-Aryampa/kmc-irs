@@ -4,6 +4,11 @@ from django.forms import BaseInlineFormSet, inlineformset_factory
 
 from incidents.classifications import INVOLVE_GROUPS
 from incidents.models import Incident, Severity, Witness
+from incidents.scene_locations import (
+    SCENE_LOCATION_CHOICES,
+    SCENE_LOCATION_OTHER,
+    SCENE_LOCATION_PRESET_VALUES,
+)
 from incidents.services.keycloak import KeycloakError, resolve_user
 from incidents.services.workflow import is_late_at_submission
 
@@ -24,6 +29,25 @@ class IncidentForm(forms.ModelForm):
                 "placeholder": "Search person to verify (supervisor)",
                 "autocomplete": "off",
                 "data-employee-target": "verifier",
+            }
+        ),
+    )
+    location_choice = forms.ChoiceField(
+        required=False,
+        label="Scene location",
+        choices=SCENE_LOCATION_CHOICES,
+        widget=forms.Select(attrs={"class": "input-field", "id": "location-choice"}),
+    )
+    scene_location_other = forms.CharField(
+        required=False,
+        label="Specify other location",
+        max_length=70,
+        widget=forms.TextInput(
+            attrs={
+                "class": "input-field",
+                "id": "location-other",
+                "maxlength": "70",
+                "placeholder": "Type the location",
             }
         ),
     )
@@ -68,13 +92,7 @@ class IncidentForm(forms.ModelForm):
         widgets = {
             "incident_date": forms.DateInput(attrs={"type": "date", "class": "input-field"}),
             "incident_time": forms.TimeInput(attrs={"type": "time", "class": "input-field"}),
-            "scene_location": forms.TextInput(
-                attrs={
-                    "class": "input-field",
-                    "maxlength": "70",
-                    "placeholder": "Where did the incident occur?",
-                }
-            ),
+            "scene_location": forms.HiddenInput(),
             "description": forms.Textarea(attrs={"rows": 4, "class": "input-field"}),
             "possible_causes": forms.Textarea(attrs={"rows": 3, "class": "input-field"}),
             "corrective_actions_taken": forms.Textarea(attrs={"rows": 3, "class": "input-field"}),
@@ -127,7 +145,6 @@ class IncidentForm(forms.ModelForm):
         required_text = [
             "incident_date",
             "incident_time",
-            "scene_location",
             "description",
             "possible_causes",
             "immediate_actions",
@@ -136,6 +153,17 @@ class IncidentForm(forms.ModelForm):
         ]
         for field in required_text:
             self.fields[field].required = self.submitting
+
+        if self.submitting:
+            self.fields["location_choice"].required = True
+
+        if self.instance and self.instance.pk and self.instance.scene_location:
+            stored = self.instance.scene_location.strip()
+            if stored in SCENE_LOCATION_PRESET_VALUES:
+                self.fields["location_choice"].initial = stored
+            else:
+                self.fields["location_choice"].initial = SCENE_LOCATION_OTHER
+                self.fields["scene_location_other"].initial = stored
 
         self.fields["corrective_actions_taken"].required = False
         self.fields["corrective_actions_taken"].label = "Corrective actions taken (optional)"
@@ -150,12 +178,32 @@ class IncidentForm(forms.ModelForm):
 
     def clean_scene_location(self):
         value = (self.cleaned_data.get("scene_location") or "").strip()
-        if len(value) > 70:
+        if value and len(value) > 70:
             raise forms.ValidationError("Location must be 70 characters or fewer.")
         return value
 
+    def _resolve_scene_location(self, cleaned):
+        choice = cleaned.get("location_choice")
+        other = (cleaned.get("scene_location_other") or "").strip()
+        if choice == SCENE_LOCATION_OTHER:
+            if self.submitting and not other:
+                self.add_error("scene_location_other", "Specify the location.")
+                return None
+            return other
+        if choice:
+            return choice
+        return (cleaned.get("scene_location") or "").strip()
+
     def clean(self):
         cleaned = super().clean()
+        resolved = self._resolve_scene_location(cleaned)
+        if resolved is not None:
+            cleaned["scene_location"] = resolved
+        if self.submitting and not (cleaned.get("scene_location") or "").strip():
+            if not self.errors.get("location_choice") and not self.errors.get("scene_location_other"):
+                self.add_error("location_choice", "Select a scene location.")
+            return cleaned
+
         if not self.submitting:
             return cleaned
 
@@ -270,20 +318,69 @@ class VerifierActionForm(forms.Form):
 
 
 class WitnessForm(forms.ModelForm):
+    keycloak_id = forms.CharField(required=False, widget=forms.HiddenInput())
+
     class Meta:
         model = Witness
         fields = ["name", "designation"]
         widgets = {
-            "name": forms.TextInput(attrs={"class": "input-field witness-name", "placeholder": "Witness name"}),
+            "name": forms.TextInput(
+                attrs={
+                    "class": "input-field employee-search witness-name",
+                    "placeholder": "Search witness name",
+                    "autocomplete": "off",
+                    "data-employee-target": "witness",
+                }
+            ),
             "designation": forms.HiddenInput(),
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, submitting=False, **kwargs):
+        self.submitting = submitting
         super().__init__(*args, **kwargs)
         self.fields["designation"].required = False
 
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get("DELETE"):
+            return cleaned
+
+        keycloak_id = (cleaned.get("keycloak_id") or "").strip()
+        name = (cleaned.get("name") or "").strip()
+
+        if not name and not keycloak_id:
+            return cleaned
+
+        if keycloak_id:
+            try:
+                user = resolve_user(keycloak_id)
+            except KeycloakError as exc:
+                self.add_error("name", str(exc))
+            else:
+                cleaned["name"] = user.full_name
+            return cleaned
+
+        if self.submitting:
+            stored_name = (self.instance.name or "").strip() if self.instance.pk else ""
+            if self.instance.pk and name == stored_name:
+                cleaned["name"] = stored_name
+            else:
+                self.add_error("name", "Select a witness from the search results.")
+            return cleaned
+
+        cleaned["name"] = name
+        return cleaned
+
 
 class BaseWitnessFormSet(BaseInlineFormSet):
+    def __init__(self, *args, submitting=False, **kwargs):
+        self.submitting = submitting
+        super().__init__(*args, **kwargs)
+
+    def _construct_form(self, i, **kwargs):
+        kwargs["submitting"] = self.submitting
+        return super()._construct_form(i, **kwargs)
+
     def clean(self):
         super().clean()
         if any(self.errors):
@@ -297,7 +394,7 @@ class BaseWitnessFormSet(BaseInlineFormSet):
                 active += 1
         if active < 1:
             raise forms.ValidationError(
-                "At least one witness is required. Click Add witness and enter a name."
+                "At least one witness is required. Click Add witness and select a person."
             )
 
 
@@ -313,7 +410,7 @@ WitnessFormSet = inlineformset_factory(
 )
 
 
-def witness_formset(instance=None, data=None):
+def witness_formset(instance=None, data=None, submitting=False):
     extra = 0 if instance and instance.pk else 1
     Factory = inlineformset_factory(
         Incident,
@@ -326,8 +423,12 @@ def witness_formset(instance=None, data=None):
         validate_min=False,
     )
     if data is not None:
-        return Factory(data, instance=instance) if instance else Factory(data)
-    return Factory(instance=instance) if instance else Factory()
+        if instance:
+            return Factory(data, instance=instance, submitting=submitting)
+        return Factory(data, submitting=submitting)
+    if instance:
+        return Factory(instance=instance, submitting=submitting)
+    return Factory(submitting=submitting)
 
 
 class CommentForm(forms.Form):

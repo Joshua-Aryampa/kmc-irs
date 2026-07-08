@@ -1,11 +1,26 @@
-{% if page_obj.has_other_pages %}
+{% if page_obj.paginator.count %}
+
 <nav class="pagination" aria-label="Pagination">
+
   {% if page_obj.has_previous %}
+
   <a href="?{% if query_string %}{{ query_string }}&{% endif %}{{ page_param|default:'page' }}={{ page_obj.previous_page_number }}" class="btn-secondary btn-sm">Previous</a>
+
   {% endif %}
-  <span class="pagination__meta">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+
+  <span class="pagination__meta">
+
+    {% if page_obj.has_other_pages %}Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }} · {% endif %}Showing {{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ page_obj.paginator.count }}
+
+  </span>
+
   {% if page_obj.has_next %}
+
   <a href="?{% if query_string %}{{ query_string }}&{% endif %}{{ page_param|default:'page' }}={{ page_obj.next_page_number }}" class="btn-secondary btn-sm">Next</a>
+
   {% endif %}
+
 </nav>
+
 {% endif %}
+

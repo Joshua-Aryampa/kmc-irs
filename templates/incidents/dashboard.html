@@ -13,89 +13,45 @@
   {% endif %}
 </div>
 
-<div class="stat-strip">
-  <div class="stat-strip__item"><div class="stat-value">{{ summary.open }}</div><div class="stat-label">Open</div></div>
-  <div class="stat-strip__item stat-card--closed"><div class="stat-value">{{ summary.closed }}</div><div class="stat-label">Closed</div></div>
-  <div class="stat-strip__item"><div class="stat-value">{{ summary.pending_verification }}</div><div class="stat-label">Pending verify</div></div>
-  <div class="stat-strip__item"><div class="stat-value">{{ summary.pending_approval }}</div><div class="stat-label">Pending approve</div></div>
-  <div class="stat-strip__item stat-card--late"><div class="stat-value">{{ summary.late }}</div><div class="stat-label">Late</div></div>
-</div>
-
-<form method="get" id="dashboard-filters" class="filter-panel">
-  <div class="filter-panel__row">
-    <div class="filter-field">
-      <label class="form-label form-label--compact">Status</label>
-      <select name="status" class="input-field input-field--compact">
-        <option value="">All</option>
-        {% for val, label in statuses %}
-        <option value="{{ val }}" {% if filters.status == val %}selected{% endif %}>{{ label }}</option>
-        {% endfor %}
-      </select>
+<section class="dashboard-stats mb-6" aria-label="Incident overview">
+  <h2 class="dashboard-stats__heading text-lg font-bold text-slate-900 mb-4">At a glance</h2>
+  <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
+    <div class="dashboard-stat dashboard-stat--open flex flex-col justify-center gap-2 min-h-[7.5rem] rounded-xl border border-slate-200 border-t-4 border-t-red-700 bg-gradient-to-b from-white to-red-50 p-5 shadow-lg">
+      <span class="dashboard-stat__value text-4xl xl:text-5xl font-extrabold leading-none text-red-700">{{ summary.open }}</span>
+      <span class="dashboard-stat__label text-sm font-semibold text-slate-600">Open</span>
     </div>
-    <div class="filter-field">
-      <label class="form-label form-label--compact">Severity</label>
-      <select name="severity" class="input-field input-field--compact">
-        <option value="">All</option>
-        {% for val, label in severities %}
-        <option value="{{ val }}" {% if filters.severity == val %}selected{% endif %}>{{ label }}</option>
-        {% endfor %}
-      </select>
+    <div class="dashboard-stat dashboard-stat--closed flex flex-col justify-center gap-2 min-h-[7.5rem] rounded-xl border border-slate-200 border-t-4 border-t-green-600 bg-gradient-to-b from-white to-green-50 p-5 shadow-lg">
+      <span class="dashboard-stat__value text-4xl xl:text-5xl font-extrabold leading-none text-green-700">{{ summary.closed }}</span>
+      <span class="dashboard-stat__label text-sm font-semibold text-slate-600">Closed</span>
     </div>
-    <div class="filter-field filter-field--date">
-      <label class="form-label form-label--compact">From</label>
-      <input type="date" name="date_from" value="{{ filters.date_from }}" class="input-field input-field--compact">
+    <div class="dashboard-stat dashboard-stat--verify flex flex-col justify-center gap-2 min-h-[7.5rem] rounded-xl border border-slate-200 border-t-4 border-t-blue-600 bg-gradient-to-b from-white to-blue-50 p-5 shadow-lg">
+      <span class="dashboard-stat__value text-4xl xl:text-5xl font-extrabold leading-none text-blue-700">{{ summary.pending_verification }}</span>
+      <span class="dashboard-stat__label text-sm font-semibold text-slate-600">Pending verification</span>
     </div>
-    <div class="filter-field filter-field--date">
-      <label class="form-label form-label--compact">To</label>
-      <input type="date" name="date_to" value="{{ filters.date_to }}" class="input-field input-field--compact">
+    <div class="dashboard-stat dashboard-stat--approve flex flex-col justify-center gap-2 min-h-[7.5rem] rounded-xl border border-slate-200 border-t-4 border-t-violet-600 bg-gradient-to-b from-white to-violet-50 p-5 shadow-lg">
+      <span class="dashboard-stat__value text-4xl xl:text-5xl font-extrabold leading-none text-violet-700">{{ summary.pending_approval }}</span>
+      <span class="dashboard-stat__label text-sm font-semibold text-slate-600">Pending approval</span>
     </div>
-    <div class="filter-field filter-field--check">
-      <label class="filter-checkbox"><input type="checkbox" name="late" value="1" {% if filters.late == '1' %}checked{% endif %} class="checkbox-field"> Late</label>
-    </div>
-    <div class="filter-field filter-field--actions">
-      <a href="{% url 'dashboard' %}" class="btn-secondary btn-sm">Reset</a>
-      <button type="submit" name="export" value="csv" class="btn-secondary btn-sm">Export</button>
+    <div class="dashboard-stat dashboard-stat--late flex flex-col justify-center gap-2 min-h-[7.5rem] rounded-xl border border-slate-200 border-t-4 border-t-amber-500 bg-gradient-to-b from-white to-amber-50 p-5 shadow-lg sm:col-span-2 xl:col-span-1">
+      <span class="dashboard-stat__value text-4xl xl:text-5xl font-extrabold leading-none text-amber-700">{{ summary.late }}</span>
+      <span class="dashboard-stat__label text-sm font-semibold text-slate-600">Late submissions</span>
     </div>
   </div>
-  <p class="filter-hint">Filters apply automatically on change</p>
-</form>
+</section>
 
-<script src="/static/js/dashboard-filters.js"></script>
+<div class="form-section">
+  <div class="section-header-row">
+    <h2>Recent incidents</h2>
+  </div>
 
-<div class="form-section incident-list">
-  {% for inc in incidents %}
-  <a href="{% url 'incident_detail' inc.pk %}" class="incident-card">
-    <div class="incident-card__head">
-      <span class="incident-card__id">{{ inc.incident_id|default:"Draft" }}</span>
-      <span class="status-badge status-{{ inc.status }}">{{ inc.get_status_display }}</span>
-    </div>
-    <dl class="incident-card__attrs">
-      <div class="incident-card__attr">
-        <dt>Location</dt>
-        <dd title="{{ inc.scene_location|default:'—' }}">{{ inc.scene_location|default:"—" }}</dd>
-      </div>
-      <div class="incident-card__attr">
-        <dt>Date</dt>
-        <dd>{{ inc.incident_date|default:"—" }}</dd>
-      </div>
-      <div class="incident-card__attr">
-        <dt>Severity</dt>
-        <dd>{{ inc.get_severity_display|default:"—" }}</dd>
-      </div>
-      <div class="incident-card__attr">
-        <dt>Reporter</dt>
-        <dd title="{{ inc.reporter.full_name }}">{{ inc.reporter.full_name }}</dd>
-      </div>
-      <div class="incident-card__attr">
-        <dt>Late</dt>
-        <dd>{% if inc.is_late_submission %}<span class="incident-late-yes">Yes</span>{% else %}No{% endif %}</dd>
-      </div>
-    </dl>
-  </a>
-  {% empty %}
-  <p class="empty-state">No incidents found.</p>
-  {% endfor %}
+  <div class="incident-list">
+    {% include "incidents/_incident_cards.html" with incidents=recent_incidents %}
+  </div>
 </div>
 
-{% include "incidents/_pagination.html" with page_obj=page_obj query_string=filter_query page_param="page" %}
+{% if total_incidents %}
+<div class="flex w-full justify-center mt-5 mb-2">
+  <a href="{% url 'history' %}" class="btn-secondary">View all {{ total_incidents }} incident{{ total_incidents|pluralize }}</a>
+</div>
+{% endif %}
 {% endblock %}
