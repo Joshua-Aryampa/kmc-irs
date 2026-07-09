@@ -198,13 +198,3 @@ def forward_to_reporter(incident: Incident, actor, comment: str):
     _log(incident, TimelineEntryType.RETURNED_TO_REPORTER, actor, message=comment.strip())
     notify_reporter_returned(incident)
     return incident
-
-
-@transaction.atomic
-def add_comment(incident: Incident, actor, comment: str):
-    if not comment.strip():
-        raise WorkflowError("Comment cannot be empty.")
-    if actor.id not in {incident.verifier_id, incident.approver_id}:
-        raise WorkflowError("Only assigned verifier or approver can comment.")
-    _log(incident, TimelineEntryType.COMMENT, actor, message=comment.strip())
-    return incident

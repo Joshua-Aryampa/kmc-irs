@@ -1,6 +1,5 @@
 from django.conf import settings
 from django.core.paginator import Paginator
-from django.db.models import Count
 
 from incidents.models import IncidentStatus
 
@@ -50,12 +49,3 @@ def incident_summary(qs):
         "pending_approval": qs.filter(status=IncidentStatus.PENDING_APPROVAL).count(),
         "late": qs.filter(is_late_submission=True).count(),
     }
-
-
-def incidents_by_location(qs):
-    return (
-        qs.exclude(scene_location="")
-        .values("scene_location")
-        .annotate(c=Count("id"))
-        .order_by("scene_location")
-    )

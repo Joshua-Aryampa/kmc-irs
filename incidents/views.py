@@ -19,7 +19,6 @@ from incidents.permissions import incidents_for_user, user_can_view_incident
 from incidents.services.keycloak import search_employees
 from incidents.services.workflow import (
     WorkflowError,
-    add_comment,
     approve_incident,
     forward_to_reporter,
     reject_approval,
@@ -33,7 +32,6 @@ from incidents.utils import (
     apply_incident_filters,
     filter_form_values,
     incident_summary,
-    incidents_by_location,
     paginate_queryset,
 )
 
@@ -56,7 +54,6 @@ def _history_context(request, qs):
             "page_obj": page_obj,
             "incidents": page_obj.object_list,
             "summary": incident_summary(qs),
-            "by_location": incidents_by_location(qs),
             "statuses": IncidentStatus.choices,
             "severities": Severity.choices,
             "filters": filter_form_values(request.GET),
@@ -428,6 +425,7 @@ def incident_detail(request, pk):
 
 
 @login_required
+@require_POST
 def incident_verify(request, pk):
     incident = get_object_or_404(Incident, pk=pk)
     form = VerifierActionForm(request.POST, incident=incident)
@@ -448,6 +446,7 @@ def incident_verify(request, pk):
 
 
 @login_required
+@require_POST
 def incident_reject_verify(request, pk):
     incident = get_object_or_404(Incident, pk=pk)
     form = CommentForm(request.POST)
@@ -463,6 +462,7 @@ def incident_reject_verify(request, pk):
 
 
 @login_required
+@require_POST
 def incident_approve(request, pk):
     incident = get_object_or_404(Incident, pk=pk)
     try:
@@ -474,6 +474,7 @@ def incident_approve(request, pk):
 
 
 @login_required
+@require_POST
 def incident_reject_approve(request, pk):
     incident = get_object_or_404(Incident, pk=pk)
     form = CommentForm(request.POST)
@@ -489,6 +490,7 @@ def incident_reject_approve(request, pk):
 
 
 @login_required
+@require_POST
 def incident_forward(request, pk):
     incident = get_object_or_404(Incident, pk=pk)
     form = ForwardCommentForm(request.POST)
@@ -500,19 +502,6 @@ def incident_forward(request, pk):
             messages.error(request, str(exc))
     else:
         messages.error(request, "Comment is required.")
-    return redirect("incident_detail", pk=pk)
-
-
-@login_required
-def incident_comment(request, pk):
-    incident = get_object_or_404(Incident, pk=pk)
-    form = CommentForm(request.POST)
-    if form.is_valid():
-        try:
-            add_comment(incident, request.user, form.cleaned_data["comment"])
-            messages.success(request, "Comment added to timeline.")
-        except WorkflowError as exc:
-            messages.error(request, str(exc))
     return redirect("incident_detail", pk=pk)
 
 
@@ -532,6 +521,7 @@ def incident_pdf(request, pk):
 
 
 @login_required
+@require_POST
 def photo_delete(request, pk, photo_pk):
     incident = get_object_or_404(Incident, pk=pk)
     if incident.reporter_id != request.user.id or not incident.is_editable_by_reporter:

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 {% block title %}History — KMC IRS{% endblock %}
 {% block content %}
 <div class="page-header page-header--center">
@@ -60,5 +61,5 @@
 
 {% include "incidents/_pagination.html" with page_obj=page_obj query_string=filter_query page_param="page" %}
 
-<script src="/static/js/incident-filters.js"></script>
+<script src="{% static 'js/incident-filters.js' %}"></script>
 {% endblock %}

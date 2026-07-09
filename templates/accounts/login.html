@@ -1,10 +1,11 @@
 {% extends "base.html" %}
+{% load static %}
 {% block title %}Login — KMC IRS{% endblock %}
 {% block content %}
 <div class="login-shell">
   <div class="login-card">
     <div class="login-brand">
-      <img src="/static/img/kmc-logo-full.png" alt="Kiira Motors Corporation" class="login-brand-logo">
+      <img src="{% static 'img/kmc-logo-full.png' %}" alt="Kiira Motors Corporation" class="login-brand-logo">
       <div>
         <h1>Sign in</h1>
         <p class="login-tagline">Kiira Motors Corporation — Incident Reporting</p>

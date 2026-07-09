@@ -27,10 +27,6 @@ def user_can_view_incident(user, incident):
     return user.has_plant_wide_access()
 
 
-def queue_visibility(user):
-    return {"verify": True, "approve": True, "forward": True, "returned": True}
-
-
 def queue_counts(user):
     counts = {
         "queue_verify": Incident.objects.filter(

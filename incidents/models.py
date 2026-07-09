@@ -189,8 +189,6 @@ class TimelineEntryType(models.TextChoices):
     APPROVAL_REJECTED = "APPROVAL_REJECTED", "Approval rejected"
     COMMENT = "COMMENT", "Comment"
     RETURNED_TO_REPORTER = "RETURNED_TO_REPORTER", "Returned to reporter"
-    REASSIGNED_VERIFIER = "REASSIGNED_VERIFIER", "Verifier reassigned"
-    REASSIGNED_APPROVER = "REASSIGNED_APPROVER", "Approver reassigned"
     LATE_FLAGGED = "LATE_FLAGGED", "Late submission flagged"
 
 

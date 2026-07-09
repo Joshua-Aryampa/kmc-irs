@@ -16,7 +16,6 @@ urlpatterns = [
     path("incidents/<int:pk>/approve/", views.incident_approve, name="incident_approve"),
     path("incidents/<int:pk>/reject-approve/", views.incident_reject_approve, name="incident_reject_approve"),
     path("incidents/<int:pk>/forward/", views.incident_forward, name="incident_forward"),
-    path("incidents/<int:pk>/comment/", views.incident_comment, name="incident_comment"),
     path("incidents/<int:pk>/pdf/", views.incident_pdf, name="incident_pdf"),
     path("incidents/<int:pk>/photos/<int:photo_pk>/delete/", views.photo_delete, name="photo_delete"),
 ]

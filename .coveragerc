@@ -1,0 +1,17 @@
+[run]
+source = accounts, incidents
+omit =
+    */migrations/*
+    */management/commands/*
+    */tests/*
+    manage.py
+    config/*
+    */apps.py
+    */urls.py
+    */admin.py
+    */templatetags/*
+
+[report]
+fail_under = 80
+show_missing = True
+skip_empty = True
