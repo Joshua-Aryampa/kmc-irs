@@ -11,7 +11,15 @@ db.sqlite3
 sqlite_export.json
 media/
 staticfiles/
+test_media/
 *.log
+
+# Tests & coverage
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+.tox/
 
 # Environment
 .env
