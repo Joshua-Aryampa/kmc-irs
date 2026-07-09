@@ -8,6 +8,7 @@ env/
 
 # Django
 db.sqlite3
+sqlite_export.json
 media/
 staticfiles/
 *.log

@@ -7,10 +7,12 @@ from django.conf import settings
 from django.core.files.base import ContentFile
 from PIL import Image
 
+from incidents.services.keycloak import get_signature_url
+
 logger = logging.getLogger(__name__)
 
 
-def _signature_urls(user):
+def _legacy_signature_urls(user):
     if not settings.SIGNATURE_BASE_URL or not user.keycloak_id:
         return []
     template = settings.SIGNATURE_PATH_TEMPLATE
@@ -28,6 +30,23 @@ def _signature_urls(user):
     urls = []
     for path in paths:
         url = urljoin(settings.SIGNATURE_BASE_URL.rstrip("/") + "/", path.lstrip("/"))
+        if url not in seen:
+            seen.add(url)
+            urls.append(url)
+    return urls
+
+
+def _signature_urls(user):
+    seen = set()
+    urls = []
+
+    if user.keycloak_id:
+        keycloak_url = get_signature_url(user.keycloak_id)
+        if keycloak_url:
+            seen.add(keycloak_url)
+            urls.append(keycloak_url)
+
+    for url in _legacy_signature_urls(user):
         if url not in seen:
             seen.add(url)
             urls.append(url)

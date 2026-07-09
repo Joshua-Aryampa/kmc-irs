@@ -5,7 +5,10 @@
   <style>
     @page { size: A4; margin: 1.2cm 1.4cm; }
     body, table, td, th, p { font-family: "Times New Roman", Times, serif; font-size: 10pt; color: #000; line-height: 1.35; }
-    .incident-no { font-size: 10pt; margin: 0 0 6pt 0; }
+    .pdf-header { width: 100%; border-collapse: collapse; margin: 0 0 6pt 0; }
+    .pdf-header td { border: none; padding: 0; vertical-align: top; font-size: 10pt; }
+    .pdf-header .header-left { text-align: left; }
+    .pdf-header .header-right { text-align: right; }
     .title { text-align: center; font-size: 16pt; font-weight: bold; margin: 0 0 6pt 0; }
     .intro { font-size: 10.5pt; font-style: italic; margin: 0 0 10pt 0; text-align: justify; }
     .branding-wrap { text-align: center; margin: 0 0 8pt 0; }
@@ -39,7 +42,12 @@
 </head>
 <body>
 
-  <p class="incident-no"><strong>Incident No:</strong> {{ incident.incident_id|default:"-" }}</p>
+  <table class="pdf-header">
+    <tr>
+      <td class="header-left">{{ form_reference }}</td>
+      <td class="header-right"><strong>Incident No:</strong> {{ incident.incident_id|default:"-" }}</td>
+    </tr>
+  </table>
 
   {% if branding_url %}
   <div class="branding-wrap"><img src="{{ branding_url }}" alt="Kiira Motors Corporation"></div>

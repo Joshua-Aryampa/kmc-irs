@@ -54,25 +54,32 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "config.wsgi.application"
 
-DATABASE_URL = os.getenv("DATABASE_URL", "")
-if DATABASE_URL.startswith("postgres"):
-    import re
+DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
+USE_SQLITE = os.getenv("USE_SQLITE", "").lower() in ("1", "true", "yes")
 
-    m = re.match(r"postgres(?:ql)?://([^:]+):([^@]+)@([^:/]+)(?::(\d+))?/(.+)", DATABASE_URL)
-    if m:
-        user, password, host, port, name = m.groups()
-        DATABASES = {
-            "default": {
-                "ENGINE": "django.db.backends.postgresql",
-                "NAME": name,
-                "USER": user,
-                "PASSWORD": password,
-                "HOST": host,
-                "PORT": port or "5432",
-            }
+if USE_SQLITE:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
         }
-    else:
-        raise ValueError("Invalid DATABASE_URL format")
+    }
+elif DATABASE_URL.startswith("postgres"):
+    from urllib.parse import unquote, urlparse
+
+    parsed = urlparse(DATABASE_URL)
+    if not parsed.path or parsed.path == "/":
+        raise ValueError("Invalid DATABASE_URL: database name is required")
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": unquote(parsed.path.lstrip("/")),
+            "USER": unquote(parsed.username or ""),
+            "PASSWORD": unquote(parsed.password or ""),
+            "HOST": parsed.hostname or "localhost",
+            "PORT": str(parsed.port or 5432),
+        }
+    }
 else:
     DATABASES = {
         "default": {
@@ -159,7 +166,7 @@ IRS_BASE_URL = os.getenv("IRS_BASE_URL", "http://127.0.0.1:8000")
 SIGNATURE_BASE_URL = os.getenv("SIGNATURE_BASE_URL", "").strip()
 SIGNATURE_PATH_TEMPLATE = os.getenv("SIGNATURE_PATH_TEMPLATE", "{keycloak_id}.png").strip()
 
-INCIDENT_ID_PREFIX = "KMC.DPN."
+INCIDENT_FORM_REFERENCE = os.getenv("INCIDENT_FORM_REFERENCE", "KMC.DQHSE.02/26-FM005").strip()
 INCIDENT_LATE_MINUTES = 30
 INCIDENT_MAX_PHOTOS = 10
 INCIDENT_MAX_PHOTO_BYTES = 5 * 1024 * 1024

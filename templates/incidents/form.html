@@ -98,7 +98,6 @@
       {% for f in formset %}
       <div class="witness-row form-grid-2 border-b employee-search-wrap" data-form-index="{{ forloop.counter0 }}">
         {% for hidden in f.hidden_fields %}{{ hidden }}{% endfor %}
-        {{ f.keycloak_id }}
         <div class="span-full">
           <label class="form-label">Witness</label>
           {{ f.name }}
@@ -115,7 +114,6 @@
       <div class="witness-row form-grid-2 border-b employee-search-wrap" data-form-index="__prefix__">
         {% with f=formset.empty_form %}
         {% for hidden in f.hidden_fields %}{{ hidden }}{% endfor %}
-        {{ f.keycloak_id }}
         <div class="span-full">
           <label class="form-label">Witness</label>
           {{ f.name }}
@@ -181,6 +179,9 @@
   <div class="form-actions">
     <button type="submit" name="action" value="draft" class="btn-secondary">Save draft</button>
     <button type="submit" name="action" value="submit" class="btn-primary">Submit Report</button>
+    {% if incident and incident.status == 'DRAFT' %}
+    <button type="submit" formaction="{% url 'incident_delete' incident.pk %}" formmethod="post" class="btn-secondary btn-danger-text" onclick="return confirm('Delete this draft incident? This cannot be undone.');">Delete draft</button>
+    {% endif %}
     <a href="{% url 'dashboard' %}" class="btn-secondary">Cancel</a>
   </div>
 </form>

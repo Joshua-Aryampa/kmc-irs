@@ -1,18 +1,27 @@
 from django.db.models import Q
 
-from accounts.models import Role
 from incidents.models import Incident, IncidentStatus
 
 
-def incidents_for_user(user):
+def _visible_incidents_for_user(user):
     if user.has_plant_wide_access():
-        return Incident.objects.all()
-    return Incident.objects.filter(
-        Q(reporter=user) | Q(verifier=user) | Q(approver=user)
+        queryset = Incident.objects.all()
+    else:
+        queryset = Incident.objects.filter(
+            Q(reporter=user) | Q(verifier=user) | Q(approver=user)
+        )
+    return queryset.filter(
+        ~Q(status=IncidentStatus.DRAFT) | Q(reporter=user, status=IncidentStatus.DRAFT)
     )
 
 
+def incidents_for_user(user):
+    return _visible_incidents_for_user(user)
+
+
 def user_can_view_incident(user, incident):
+    if incident.status == IncidentStatus.DRAFT and incident.reporter_id != user.id:
+        return False
     if user.id in {incident.reporter_id, incident.verifier_id, incident.approver_id}:
         return True
     return user.has_plant_wide_access()

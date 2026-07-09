@@ -10,6 +10,7 @@ urlpatterns = [
     path("incidents/new/", views.incident_create, name="incident_create"),
     path("incidents/<int:pk>/", views.incident_detail, name="incident_detail"),
     path("incidents/<int:pk>/edit/", views.incident_edit, name="incident_edit"),
+    path("incidents/<int:pk>/delete/", views.incident_delete, name="incident_delete"),
     path("incidents/<int:pk>/verify/", views.incident_verify, name="incident_verify"),
     path("incidents/<int:pk>/reject-verify/", views.incident_reject_verify, name="incident_reject_verify"),
     path("incidents/<int:pk>/approve/", views.incident_approve, name="incident_approve"),

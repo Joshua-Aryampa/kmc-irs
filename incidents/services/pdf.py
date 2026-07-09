@@ -9,7 +9,7 @@ from xhtml2pdf import pisa
 from incidents.classifications import INVOLVE_GROUPS
 
 
-FORM_REFERENCE = "KMC.DPN.03/26-FM001"
+FORM_REFERENCE = settings.INCIDENT_FORM_REFERENCE
 
 
 def _file_data_uri(path, mime="image/png"):

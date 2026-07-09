@@ -2,8 +2,9 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, HttpResponseForbidden, JsonResponse
+from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
-from django.views.decorators.http import require_GET
+from django.views.decorators.http import require_GET, require_POST
 
 from incidents.forms import (
     CommentForm,
@@ -13,7 +14,7 @@ from incidents.forms import (
     VerifierActionForm,
     witness_formset,
 )
-from incidents.models import Incident, IncidentPhoto, IncidentStatus, Severity, TimelineEntryType
+from incidents.models import Incident, IncidentPhoto, IncidentStatus, Severity, TimelineEntry, TimelineEntryType
 from incidents.permissions import incidents_for_user, user_can_view_incident
 from incidents.services.keycloak import search_employees
 from incidents.services.workflow import (
@@ -135,6 +136,51 @@ def employee_search(request):
     return JsonResponse({"results": results})
 
 
+def _save_photos(incident, photos):
+    order = incident.photos.count()
+    for photo in photos:
+        IncidentPhoto.objects.create(
+            incident=incident,
+            image=photo,
+            original_filename=photo.name,
+            file_size_bytes=photo.size,
+            mime_type=photo.content_type or "application/octet-stream",
+            sort_order=order,
+        )
+        order += 1
+
+
+def _ensure_created_timeline(incident, user):
+    if not incident.timeline_entries.filter(entry_type=TimelineEntryType.CREATED).exists():
+        TimelineEntry.objects.create(
+            incident=incident,
+            entry_type=TimelineEntryType.CREATED,
+            actor=user,
+            actor_role=user.role,
+        )
+
+
+def _submit_photo_errors(photo_form, request, incident=None):
+    errors = []
+    new_photos = request.FILES.getlist("photos")
+    existing_count = incident.photos.count() if incident else 0
+    if new_photos:
+        try:
+            photo_form.validate_photos(existing_count=existing_count)
+        except Exception as exc:
+            errors.append(str(exc))
+    elif existing_count == 0:
+        errors.append("At least one photo is required before you can submit the report.")
+    return errors, new_photos
+
+
+def _persist_new_photos(incident, photo_form, new_photos):
+    if not new_photos:
+        return
+    photos = photo_form.validate_photos(existing_count=incident.photos.count())
+    _save_photos(incident, photos)
+
+
 @login_required
 def incident_create(request):
     if not request.user.can_report():
@@ -142,72 +188,71 @@ def incident_create(request):
         return redirect("dashboard")
 
     from incidents.classifications import INVOLVE_GROUPS
-    from incidents.models import TimelineEntry, TimelineEntryType
 
     if request.method == "POST":
         submitting = request.POST.get("action") == "submit"
         draft_form = IncidentForm(request.POST, submitting=False, reporter=request.user)
-        submit_form = (
-            IncidentForm(request.POST, submitting=True, reporter=request.user) if submitting else draft_form
-        )
-        form = submit_form if submitting else draft_form
+        submit_form = IncidentForm(request.POST, submitting=True, reporter=request.user)
         photo_form = PhotoUploadForm(request.POST, request.FILES)
         incident = None
         photo_errors = []
 
-        draft_valid = draft_form.is_valid()
-        if draft_valid:
-            incident = draft_form.save(commit=False)
-            incident.reporter = request.user
-            incident.status = IncidentStatus.DRAFT
-            incident.save()
-            if not incident.timeline_entries.filter(entry_type=TimelineEntryType.CREATED).exists():
-                TimelineEntry.objects.create(
-                    incident=incident,
-                    entry_type=TimelineEntryType.CREATED,
-                    actor=request.user,
-                    actor_role=request.user.role,
-                )
-            formset = witness_formset(instance=incident, data=request.POST, submitting=submitting)
-        else:
-            formset = witness_formset(data=request.POST, submitting=submitting)
+        if submitting:
+            form = submit_form
+            formset = witness_formset(data=request.POST, submitting=True)
+            submit_valid = submit_form.is_valid()
+            formset_valid = formset.is_valid() if submit_valid else False
+            if submit_valid and formset_valid:
+                photo_errors, new_photos = _submit_photo_errors(photo_form, request)
 
-        formset_valid = formset.is_valid() if draft_valid else False
-
-        if draft_valid:
-            if formset_valid:
-                formset.save()
-            new_photos = request.FILES.getlist("photos")
-            if new_photos:
+            if submit_valid and formset_valid and not photo_errors:
                 try:
-                    photos = photo_form.validate_photos(existing_count=incident.photos.count())
-                    _save_photos(incident, photos)
-                except Exception as exc:
-                    photo_errors.append(str(exc))
-
-            if submitting:
-                if not submit_form.is_valid():
-                    form = submit_form
-                elif not formset_valid:
-                    pass
-                elif not photo_errors and incident.photos.count() == 0:
-                    photo_errors.append("At least one photo is required before you can submit the report.")
-                elif not photo_errors:
-                    try:
+                    with transaction.atomic():
+                        incident = submit_form.save(commit=False)
+                        incident.reporter = request.user
+                        incident.status = IncidentStatus.DRAFT
+                        incident.save()
+                        _ensure_created_timeline(incident, request.user)
+                        bound_formset = witness_formset(
+                            instance=incident, data=request.POST, submitting=True
+                        )
+                        bound_formset.is_valid()
+                        bound_formset.save()
+                        _persist_new_photos(incident, photo_form, new_photos)
                         verifier = submit_form.cleaned_data["selected_verifier"]
                         submit_incident(incident, request.user, verifier)
-                        messages.success(
-                            request, f"Incident {incident.incident_id} submitted for verification."
-                        )
-                        return redirect("incident_detail", pk=incident.pk)
+                    messages.success(
+                        request, f"Incident {incident.incident_id} submitted for verification."
+                    )
+                    return redirect("incident_detail", pk=incident.pk)
+                except Exception as exc:
+                    messages.error(request, str(exc))
+        else:
+            form = draft_form
+            formset = witness_formset(data=request.POST, submitting=False)
+            if draft_form.is_valid() and formset.is_valid():
+                incident = draft_form.save(commit=False)
+                incident.reporter = request.user
+                incident.status = IncidentStatus.DRAFT
+                incident.save()
+                _ensure_created_timeline(incident, request.user)
+                bound_formset = witness_formset(
+                    instance=incident, data=request.POST, submitting=False
+                )
+                bound_formset.is_valid()
+                bound_formset.save()
+                new_photos = request.FILES.getlist("photos")
+                if new_photos:
+                    try:
+                        _persist_new_photos(incident, photo_form, new_photos)
                     except Exception as exc:
-                        messages.error(request, str(exc))
-            elif not photo_errors:
-                messages.success(request, "Draft saved.")
-                return redirect("incident_edit", pk=incident.pk)
+                        photo_errors.append(str(exc))
+                if not photo_errors:
+                    messages.success(request, "Draft saved.")
+                    return redirect("incident_edit", pk=incident.pk)
 
-            for msg in photo_errors:
-                messages.error(request, msg)
+        for msg in photo_errors:
+            messages.error(request, msg)
 
         return render(
             request,
@@ -257,52 +302,50 @@ def incident_edit(request, pk):
         draft_form = IncidentForm(
             request.POST, instance=incident, submitting=False, reporter=request.user
         )
-        submit_form = (
-            IncidentForm(request.POST, instance=incident, submitting=True, reporter=request.user)
-            if submitting
-            else draft_form
+        submit_form = IncidentForm(
+            request.POST, instance=incident, submitting=True, reporter=request.user
         )
-        form = submit_form if submitting else draft_form
-        formset = witness_formset(instance=incident, data=request.POST, submitting=submitting)
         photo_form = PhotoUploadForm(request.POST, request.FILES)
         photo_errors = []
 
-        draft_valid = draft_form.is_valid()
-        formset_valid = formset.is_valid() if draft_valid else False
+        if submitting:
+            form = submit_form
+            formset = witness_formset(instance=incident, data=request.POST, submitting=True)
+            submit_valid = submit_form.is_valid()
+            formset_valid = formset.is_valid() if submit_valid else False
+            if submit_valid and formset_valid:
+                photo_errors, new_photos = _submit_photo_errors(photo_form, request, incident)
 
-        if draft_valid:
-            incident = draft_form.save()
-            if formset_valid:
-                formset.save()
-            new_photos = request.FILES.getlist("photos")
-            if new_photos:
+            if submit_valid and formset_valid and not photo_errors:
                 try:
-                    photos = photo_form.validate_photos(existing_count=incident.photos.count())
-                    _save_photos(incident, photos)
-                except Exception as exc:
-                    photo_errors.append(str(exc))
-
-            if submitting:
-                if not submit_form.is_valid():
-                    form = submit_form
-                elif not formset_valid:
-                    pass
-                elif not photo_errors and incident.photos.count() == 0:
-                    photo_errors.append("At least one photo is required before you can submit the report.")
-                elif not photo_errors:
-                    try:
+                    with transaction.atomic():
+                        submit_form.save()
+                        formset.save()
+                        _persist_new_photos(incident, photo_form, new_photos)
                         verifier = submit_form.cleaned_data["selected_verifier"]
                         submit_incident(incident, request.user, verifier)
-                        messages.success(request, f"Incident {incident.incident_id} submitted.")
-                        return redirect("incident_detail", pk=incident.pk)
+                    messages.success(request, f"Incident {incident.incident_id} submitted.")
+                    return redirect("incident_detail", pk=incident.pk)
+                except Exception as exc:
+                    messages.error(request, str(exc))
+        else:
+            form = draft_form
+            formset = witness_formset(instance=incident, data=request.POST, submitting=False)
+            if draft_form.is_valid() and formset.is_valid():
+                draft_form.save()
+                formset.save()
+                new_photos = request.FILES.getlist("photos")
+                if new_photos:
+                    try:
+                        _persist_new_photos(incident, photo_form, new_photos)
                     except Exception as exc:
-                        messages.error(request, str(exc))
-            elif not photo_errors:
-                messages.success(request, "Draft saved.")
-                return redirect("incident_edit", pk=incident.pk)
+                        photo_errors.append(str(exc))
+                if not photo_errors:
+                    messages.success(request, "Draft saved.")
+                    return redirect("incident_edit", pk=incident.pk)
 
-            for msg in photo_errors:
-                messages.error(request, msg)
+        for msg in photo_errors:
+            messages.error(request, msg)
 
         return render(
             request,
@@ -339,18 +382,18 @@ def incident_edit(request, pk):
     )
 
 
-def _save_photos(incident, photos):
-    order = incident.photos.count()
-    for photo in photos:
-        IncidentPhoto.objects.create(
-            incident=incident,
-            image=photo,
-            original_filename=photo.name,
-            file_size_bytes=photo.size,
-            mime_type=photo.content_type or "application/octet-stream",
-            sort_order=order,
-        )
-        order += 1
+@login_required
+@require_POST
+def incident_delete(request, pk):
+    incident = get_object_or_404(Incident, pk=pk)
+    if incident.reporter_id != request.user.id:
+        return HttpResponseForbidden("You cannot delete this incident.")
+    if incident.status != IncidentStatus.DRAFT:
+        messages.error(request, "Only draft incidents can be deleted.")
+        return redirect("incident_detail", pk=pk)
+    incident.delete()
+    messages.success(request, "Draft incident deleted.")
+    return redirect("dashboard")
 
 
 @login_required
@@ -370,6 +413,8 @@ def incident_detail(request, pk):
             initial={"comment": incident.pending_approver_comment or incident.return_comment}
         ),
         "can_edit": incident.reporter_id == request.user.id and incident.is_editable_by_reporter,
+        "can_delete": incident.reporter_id == request.user.id
+        and incident.status == IncidentStatus.DRAFT,
         "can_verify": request.user.id == incident.verifier_id
         and incident.status == IncidentStatus.PENDING_VERIFICATION,
         "can_approve": request.user.id == incident.approver_id

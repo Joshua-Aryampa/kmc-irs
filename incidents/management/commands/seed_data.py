@@ -32,7 +32,9 @@ class Command(BaseCommand):
     help = "Seed demo users and incident sequence for local development (without Keycloak)."
 
     def handle(self, *args, **options):
-        IncidentSequence.objects.get_or_create(year=timezone.localdate().year, defaults={"last_sequence": 0})
+        now = timezone.localdate()
+        period = f"{now.year:04d}{now.month:02d}"
+        IncidentSequence.objects.get_or_create(period=period, defaults={"last_sequence": 0})
 
         for username, first, last, designation, role, keycloak_id, password in USERS:
             user, created = User.objects.update_or_create(

@@ -14,6 +14,12 @@
   </div>
   <div class="page-actions">
     {% if can_edit %}<a href="{% url 'incident_edit' incident.pk %}" class="btn-secondary">Edit report</a>{% endif %}
+    {% if can_delete %}
+    <form method="post" action="{% url 'incident_delete' incident.pk %}" class="inline-form" onsubmit="return confirm('Delete this draft incident? This cannot be undone.');">
+      {% csrf_token %}
+      <button type="submit" class="btn-secondary btn-danger-text">Delete draft</button>
+    </form>
+    {% endif %}
     {% if incident.is_closed %}<a href="{% url 'incident_pdf' incident.pk %}" class="btn-primary">Download PDF</a>{% endif %}
   </div>
 </div>

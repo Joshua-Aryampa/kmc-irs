@@ -8,7 +8,22 @@ Works on phones and desktop browsers.
 
 ## Quick start (local development without Keycloak)
 
-For development only, you can run without Keycloak using local demo accounts:
+For development only, you can run without Keycloak using local demo accounts.
+
+**Database:** PostgreSQL is the default. Start a local instance with Docker:
+
+```powershell
+docker compose up -d db
+```
+
+Or point `DATABASE_URL` in `.env` at an existing PostgreSQL server. Create the database once (if not using Docker):
+
+```powershell
+# After PostgreSQL is installed — adjust psql path/version if needed
+& "C:\Program Files\PostgreSQL\17\bin\psql.exe" -U postgres -f scripts\create_postgres_db.sql
+```
+
+To use SQLite instead, remove or comment out `DATABASE_URL` in `.env`.
 
 ```powershell
 cd kmc-irs
@@ -21,6 +36,13 @@ copy .env.example .env
 python manage.py migrate
 python manage.py seed_data
 python manage.py runserver
+```
+
+**Migrating existing SQLite data to PostgreSQL:**
+
+```powershell
+docker compose up -d db
+.\scripts\migrate_to_postgres.ps1
 ```
 
 Open **http://127.0.0.1:8000** and log in with a demo account (below).
@@ -115,7 +137,7 @@ Draft → Pending verification → Pending approval → Closed
 | `SIGNATURE_BASE_URL` | Where employee signature images are stored |
 | `SIGNATURE_PATH_TEMPLATE` | Path pattern, default `{keycloak_id}.png` |
 | `IRS_BASE_URL` | Base URL in notification emails |
-| `DATABASE_URL` | PostgreSQL (unset → SQLite for dev) |
+| `DATABASE_URL` | PostgreSQL connection URL (unset → SQLite fallback) |
 
 Application limits (in `config/settings.py`): 30-minute late threshold, 10 photos max, 20 incidents per list page.
 
@@ -143,7 +165,7 @@ kmc-irs/
 └── docs/                SRS and SDD (HTML)
 ```
 
-**Stack:** Python 3.11+, Django 5.x, Keycloak (OIDC), SQLite or PostgreSQL.
+**Stack:** Python 3.11+, Django 5.x, Keycloak (OIDC), PostgreSQL (SQLite fallback for dev).
 
 ---
 
@@ -166,6 +188,17 @@ kmc-irs/
 | Cannot submit | Select verifier from search results; need at least one photo and witness |
 
 **Reset database (dev only):**
+
+PostgreSQL:
+
+```powershell
+docker compose down -v
+docker compose up -d db
+python manage.py migrate
+python manage.py seed_data
+```
+
+SQLite fallback (with `DATABASE_URL` unset in `.env`):
 
 ```powershell
 del db.sqlite3

@@ -210,7 +210,9 @@ class TimelineEntry(models.Model):
 
 
 class IncidentSequence(models.Model):
-    year = models.PositiveSmallIntegerField(primary_key=True)
+    """Monthly sequence counter keyed by YYYYMM (resets each calendar month)."""
+
+    period = models.CharField(max_length=6, primary_key=True)
     last_sequence = models.PositiveIntegerField(default=0)
 
 

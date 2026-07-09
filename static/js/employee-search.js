@@ -43,9 +43,22 @@
 
     function selectEmployee(item) {
       input.value = item.name;
-      if (hidden) {
-        hidden.value = item.keycloak_id;
-        hidden.dispatchEvent(new Event("change"));
+      const wrap = input.closest(".employee-search-wrap, .witness-row");
+      const hiddenFields = wrap
+        ? wrap.querySelectorAll('input[type="hidden"][name$="keycloak_id"]')
+        : [];
+      if (hiddenFields.length) {
+        hiddenFields.forEach(function (field) {
+          field.value = item.keycloak_id || "";
+        });
+      } else if (hidden) {
+        hidden.value = item.keycloak_id || "";
+      }
+      if (wrap) {
+        const designationInput = wrap.querySelector('input[type="hidden"][name$="-designation"]');
+        if (designationInput && item.designation) {
+          designationInput.value = item.designation;
+        }
       }
       hideResults();
     }

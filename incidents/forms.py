@@ -385,6 +385,8 @@ class BaseWitnessFormSet(BaseInlineFormSet):
         super().clean()
         if any(self.errors):
             return
+        if not self.submitting:
+            return
         active = 0
         for form in self.forms:
             if not form.cleaned_data or form.cleaned_data.get("DELETE"):
@@ -410,8 +412,14 @@ WitnessFormSet = inlineformset_factory(
 )
 
 
+def _witness_form_extra(instance):
+    if instance and instance.pk:
+        return 0 if instance.witnesses.exists() else 1
+    return 1
+
+
 def witness_formset(instance=None, data=None, submitting=False):
-    extra = 0 if instance and instance.pk else 1
+    extra = _witness_form_extra(instance)
     Factory = inlineformset_factory(
         Incident,
         Witness,

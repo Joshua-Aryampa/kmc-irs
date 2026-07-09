@@ -1,4 +1,3 @@
-from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
@@ -20,14 +19,17 @@ def validate_three_different_people(reporter, verifier, approver=None):
 @transaction.atomic
 def generate_incident_id(submission_dt=None) -> str:
     submission_dt = submission_dt or timezone.localtime()
-    year = submission_dt.year
+    period = f"{submission_dt.year:04d}{submission_dt.month:02d}"
     seq_row, _ = IncidentSequence.objects.select_for_update().get_or_create(
-        year=year, defaults={"last_sequence": 0}
+        period=period, defaults={"last_sequence": 0}
     )
     seq_row.last_sequence += 1
+    if seq_row.last_sequence > 999:
+        raise RoutingError(
+            f"Monthly incident sequence limit reached for {submission_dt:%B %Y} (max 999)."
+        )
     seq_row.save(update_fields=["last_sequence"])
-    seq = str(seq_row.last_sequence).zfill(5)
     mm = f"{submission_dt.month:02d}"
-    dd = f"{submission_dt.day:02d}"
-    yyyy = submission_dt.year
-    return f"{settings.INCIDENT_ID_PREFIX}{mm}/{dd}-{yyyy}-{seq}"
+    yy = f"{submission_dt.year % 100:02d}"
+    seq = str(seq_row.last_sequence).zfill(3)
+    return f"{mm}{yy}{seq}"

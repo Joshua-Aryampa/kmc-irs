@@ -83,12 +83,44 @@ def _search_local_users(query, limit):
                 {
                     "keycloak_id": user.keycloak_id or str(user.pk),
                     "name": user.full_name,
+                    "designation": user.designation or "",
                     "user_id": user.pk,
                 }
             )
         if len(matches) >= limit:
             break
     return matches
+
+
+def get_signature_url(keycloak_id):
+    keycloak_id = (keycloak_id or "").strip()
+    if not keycloak_id or not settings.KEYCLOAK_SERVER_URL:
+        return ""
+
+    try:
+        token = _admin_token()
+    except Exception as exc:
+        logger.warning("Keycloak admin token failed during signature lookup: %s", exc)
+        return ""
+
+    url = urljoin(
+        settings.KEYCLOAK_SERVER_URL.rstrip("/") + "/",
+        f"admin/realms/{settings.KEYCLOAK_REALM}/users/{keycloak_id}",
+    )
+    try:
+        response = requests.get(url, headers={"Authorization": f"Bearer {token}"}, timeout=10)
+        if response.status_code == 404:
+            return ""
+        response.raise_for_status()
+    except Exception as exc:
+        logger.warning("Keycloak signature lookup failed for %s: %s", keycloak_id, exc)
+        return ""
+
+    attrs = response.json().get("attributes") or {}
+    raw = attrs.get("signature")
+    if not raw:
+        return ""
+    return (raw[0] if isinstance(raw, list) else str(raw)).strip()
 
 
 def resolve_user(keycloak_id):
