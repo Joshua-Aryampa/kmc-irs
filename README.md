@@ -221,7 +221,7 @@ kmc-irs/
 │   └── img/             KMC logos (navbar, login, PDF branding)
 ├── templates/
 ├── scripts/             Postgres setup and SQLite migration helpers
-└── docs/                SRS and SDD (HTML; may predate some design changes — this README reflects the built system)
+└── docs/                SRS and SDD (Word; inception baseline aligned with built system)
 ```
 
 **Stack:** Python 3.11+, Django 5.x, Keycloak (OIDC), PostgreSQL (SQLite fallback for dev), xhtml2pdf.
