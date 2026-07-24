@@ -1,0 +1,74 @@
+{% load incident_extras %}
+
+<div class="data-table-wrap">
+
+  <table class="data-table queue-table{% if table_class %} {{ table_class }}{% endif %}">
+
+    <thead>
+
+      <tr>
+
+        <th class="col-id">Incident ID</th>
+
+        <th class="col-location">Area</th>
+
+        <th class="col-date">Date</th>
+
+        <th class="col-severity">Severity</th>
+
+        <th class="col-status">Status</th>
+
+        <th class="col-details">Details</th>
+
+      </tr>
+
+    </thead>
+
+    <tbody>
+
+      {% for inc in incidents %}
+
+      <tr class="incident-row incident-row--clickable" data-href="{% url 'incident_detail' inc.pk %}" aria-label="View incident {{ inc.incident_id|default:'Draft' }}">
+
+        <td class="col-id"><span class="cell-id">{{ inc.incident_id|default:"Draft" }}</span></td>
+
+        <td class="col-location"><span class="cell-truncate" title="{{ inc.scene_location|default:'—' }}">{{ inc.scene_location|default:"—" }}</span></td>
+
+        <td class="col-date">{{ inc.incident_date|incident_date_display }}</td>
+
+        <td class="col-severity">{% if inc.severity %}{{ inc.get_severity_display }}{% else %}—{% endif %}</td>
+
+        <td class="col-status"><span class="status-badge status-{{ inc.status }}">{{ inc.status|status_label }}</span></td>
+
+        <td class="col-details">
+
+          {% if details_arrow %}
+
+          <a href="{% url 'incident_detail' inc.pk %}" class="cell-details-arrow" aria-label="View details for {{ inc.incident_id|default:'incident' }}"><span aria-hidden="true">→</span></a>
+
+          {% else %}
+
+          <a href="{% url 'incident_detail' inc.pk %}" class="link-primary">Details</a>
+
+          {% endif %}
+
+        </td>
+
+      </tr>
+
+      {% empty %}
+
+      <tr>
+
+        <td colspan="6" class="empty-state-cell">No items.</td>
+
+      </tr>
+
+      {% endfor %}
+
+    </tbody>
+
+  </table>
+
+</div>
+

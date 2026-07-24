@@ -1,57 +1,60 @@
 {% extends "base.html" %}
+{% load static %}
 {% block title %}Dashboard — KMC IRS{% endblock %}
 {% block content %}
-<div class="page-header page-header--center">
-  <div>
+<div class="dashboard-page">
+  <div class="page-header page-header--dashboard">
     <h1 class="page-title">Dashboard</h1>
-    <p class="page-subtitle">{% if user.has_plant_wide_access %}Plant-wide incident overview{% else %}Incidents you reported, verified, or approved{% endif %}</p>
-  </div>
-  {% if user.can_report %}
-  <div class="page-actions">
+    {% if user.can_report %}
     <a href="{% url 'incident_create' %}" class="btn-primary">Report incident</a>
+    {% endif %}
   </div>
-  {% endif %}
+
+  <section class="dashboard-stats" aria-label="Incident overview">
+    <div class="stat-card-grid">
+      <div class="stat-card stat-card--open">
+        <div class="stat-card__head">Open</div>
+        <div class="stat-card__body">
+          <span class="stat-card__value">{{ summary.open }}</span>
+        </div>
+      </div>
+      <div class="stat-card stat-card--closed">
+        <div class="stat-card__head">Closed</div>
+        <div class="stat-card__body">
+          <span class="stat-card__value">{{ summary.closed }}</span>
+        </div>
+      </div>
+      <div class="stat-card stat-card--verify">
+        <div class="stat-card__head">Pending verification</div>
+        <div class="stat-card__body">
+          <span class="stat-card__value">{{ summary.pending_verification }}</span>
+        </div>
+      </div>
+      <div class="stat-card stat-card--approve">
+        <div class="stat-card__head">Pending approval</div>
+        <div class="stat-card__body">
+          <span class="stat-card__value">{{ summary.pending_approval }}</span>
+        </div>
+      </div>
+      <div class="stat-card stat-card--late">
+        <div class="stat-card__head">Late</div>
+        <div class="stat-card__body">
+          <span class="stat-card__value">{{ summary.late }}</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel panel--dashboard-table">
+    <div class="panel__header panel__header--dashboard-table">
+      <h2 class="panel__title panel__title--section">Recent incidents</h2>
+      {% if total_incidents %}
+      <a href="{% url 'history' %}" class="link-view-all">View all</a>
+      {% endif %}
+    </div>
+    <div class="panel__body panel__body--flush">
+      {% include "incidents/_incident_table.html" with incidents=recent_incidents table_class="data-table--dashboard" details_arrow=True %}
+    </div>
+  </section>
 </div>
-
-<section class="dashboard-stats mb-6" aria-label="Incident overview">
-  <h2 class="dashboard-stats__heading text-lg font-bold text-slate-900 mb-4">At a glance</h2>
-  <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
-    <div class="dashboard-stat dashboard-stat--open flex flex-col justify-center gap-2 min-h-[7.5rem] rounded-xl border border-slate-200 border-t-4 border-t-red-700 bg-gradient-to-b from-white to-red-50 p-5 shadow-lg">
-      <span class="dashboard-stat__value text-4xl xl:text-5xl font-extrabold leading-none text-red-700">{{ summary.open }}</span>
-      <span class="dashboard-stat__label text-sm font-semibold text-slate-600">Open</span>
-    </div>
-    <div class="dashboard-stat dashboard-stat--closed flex flex-col justify-center gap-2 min-h-[7.5rem] rounded-xl border border-slate-200 border-t-4 border-t-green-600 bg-gradient-to-b from-white to-green-50 p-5 shadow-lg">
-      <span class="dashboard-stat__value text-4xl xl:text-5xl font-extrabold leading-none text-green-700">{{ summary.closed }}</span>
-      <span class="dashboard-stat__label text-sm font-semibold text-slate-600">Closed</span>
-    </div>
-    <div class="dashboard-stat dashboard-stat--verify flex flex-col justify-center gap-2 min-h-[7.5rem] rounded-xl border border-slate-200 border-t-4 border-t-blue-600 bg-gradient-to-b from-white to-blue-50 p-5 shadow-lg">
-      <span class="dashboard-stat__value text-4xl xl:text-5xl font-extrabold leading-none text-blue-700">{{ summary.pending_verification }}</span>
-      <span class="dashboard-stat__label text-sm font-semibold text-slate-600">Pending verification</span>
-    </div>
-    <div class="dashboard-stat dashboard-stat--approve flex flex-col justify-center gap-2 min-h-[7.5rem] rounded-xl border border-slate-200 border-t-4 border-t-violet-600 bg-gradient-to-b from-white to-violet-50 p-5 shadow-lg">
-      <span class="dashboard-stat__value text-4xl xl:text-5xl font-extrabold leading-none text-violet-700">{{ summary.pending_approval }}</span>
-      <span class="dashboard-stat__label text-sm font-semibold text-slate-600">Pending approval</span>
-    </div>
-    <div class="dashboard-stat dashboard-stat--late flex flex-col justify-center gap-2 min-h-[7.5rem] rounded-xl border border-slate-200 border-t-4 border-t-amber-500 bg-gradient-to-b from-white to-amber-50 p-5 shadow-lg sm:col-span-2 xl:col-span-1">
-      <span class="dashboard-stat__value text-4xl xl:text-5xl font-extrabold leading-none text-amber-700">{{ summary.late }}</span>
-      <span class="dashboard-stat__label text-sm font-semibold text-slate-600">Late submissions</span>
-    </div>
-  </div>
-</section>
-
-<div class="form-section">
-  <div class="section-header-row">
-    <h2>Recent incidents</h2>
-  </div>
-
-  <div class="incident-list">
-    {% include "incidents/_incident_cards.html" with incidents=recent_incidents %}
-  </div>
-</div>
-
-{% if total_incidents %}
-<div class="flex w-full justify-center mt-5 mb-2">
-  <a href="{% url 'history' %}" class="btn-secondary">View all {{ total_incidents }} incident{{ total_incidents|pluralize }}</a>
-</div>
-{% endif %}
 {% endblock %}

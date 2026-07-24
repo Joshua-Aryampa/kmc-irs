@@ -2,7 +2,12 @@ from django.test import TestCase
 
 from accounts.models import Role
 from incidents.models import IncidentStatus
-from incidents.permissions import incidents_for_user, queue_counts, user_can_view_incident
+from incidents.permissions import (
+    actionable_incidents_for_user,
+    incidents_for_user,
+    queue_counts,
+    user_can_view_incident,
+)
 from incidents.tests.helpers import add_photo, make_incident, make_user
 
 

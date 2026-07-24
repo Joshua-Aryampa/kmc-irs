@@ -177,17 +177,16 @@
     previewWrap.innerHTML = "";
     Array.from(pendingPhotos.files).forEach((file, index) => {
       const card = document.createElement("div");
-      card.className = "border rounded overflow-hidden relative";
+      card.className = "photo-thumb photo-thumb--preview";
       const img = document.createElement("img");
-      img.className = "w-full h-24 object-cover";
       img.alt = file.name;
       img.src = URL.createObjectURL(file);
       const label = document.createElement("div");
-      label.className = "text-xs p-1 truncate";
+      label.className = "photo-preview-name";
       label.textContent = file.name;
       const removeBtn = document.createElement("button");
       removeBtn.type = "button";
-      removeBtn.className = "block w-full text-center text-xs text-red-700 py-1 border-t";
+      removeBtn.className = "photo-delete-btn";
       removeBtn.textContent = "Remove";
       removeBtn.addEventListener("click", () => {
         const updated = new DataTransfer();
@@ -265,7 +264,8 @@
   function checkLate() {
     if (!lateReason) return;
     const show = isLateSubmission();
-    lateReason.style.display = show ? "block" : "none";
+    lateReason.classList.toggle("hidden", !show);
+    lateReason.hidden = !show;
     if (!show && lateReasonError) {
       lateReasonError.textContent = "";
       lateReasonError.classList.add("hidden");
@@ -297,8 +297,10 @@
     }
     e.preventDefault();
     if (lateReason) {
-      lateReason.style.display = "block";
+      lateReason.classList.remove("hidden");
+      lateReason.hidden = false;
     }
+    showWizardStep(4);
     if (lateReasonError) {
       lateReasonError.textContent =
         `Reason for delay is required when submitting more than ${lateMinutes} minutes after the incident time.`;
@@ -306,4 +308,50 @@
     }
     reasonField?.focus();
   });
+
+  const steps = [...form.querySelectorAll("[data-wizard-step]")];
+  const indicators = [...document.querySelectorAll("[data-step-indicator]")];
+  const caption = document.getElementById("wizard-step-caption");
+  const backBtn = document.getElementById("wizard-back");
+  const nextBtn = document.getElementById("wizard-next");
+  const submitBtn = document.getElementById("wizard-submit");
+  const stepTitles = {
+    1: "Step 1 of 4 — Incident Details",
+    2: "Step 2 of 4 — Analysis & Response",
+    3: "Step 3 of 4 — Witnesses & Photos",
+    4: "Step 4 of 4 — Verification & Declaration",
+  };
+  let currentStep = 1;
+
+  function showWizardStep(step) {
+    if (!steps.length) return;
+    currentStep = step;
+    steps.forEach((panel) => {
+      const active = Number(panel.dataset.wizardStep) === step;
+      panel.classList.toggle("wizard-step--active", active);
+      panel.hidden = !active;
+    });
+    indicators.forEach((item) => {
+      const n = Number(item.dataset.stepIndicator);
+      item.classList.toggle("wizard-stepper__item--active", n === step);
+      item.classList.toggle("wizard-stepper__item--done", n < step);
+    });
+    if (caption) caption.textContent = stepTitles[step] || "";
+    if (backBtn) {
+      backBtn.disabled = step <= 1;
+      backBtn.classList.toggle("hidden", step <= 1);
+    }
+    if (nextBtn) nextBtn.classList.toggle("hidden", step >= 4);
+    if (submitBtn) submitBtn.classList.toggle("hidden", step < 4);
+  }
+
+  if (steps.length && nextBtn && backBtn) {
+    nextBtn.addEventListener("click", () => {
+      if (currentStep < 4) showWizardStep(currentStep + 1);
+    });
+    backBtn.addEventListener("click", () => {
+      if (currentStep > 1) showWizardStep(currentStep - 1);
+    });
+    showWizardStep(1);
+  }
 })();

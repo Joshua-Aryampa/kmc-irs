@@ -15,7 +15,7 @@ SCENE_LOCATION_PRESETS = [
 SCENE_LOCATION_PRESET_VALUES = {value for value, _ in SCENE_LOCATION_PRESETS}
 
 SCENE_LOCATION_CHOICES = [
-    ("", "Select location"),
+    ("", "Where did the incident occur?"),
     *SCENE_LOCATION_PRESETS,
     (SCENE_LOCATION_OTHER, "Other"),
 ]

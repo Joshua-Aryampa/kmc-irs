@@ -47,6 +47,7 @@ TEMPLATES = [
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
                 "incidents.context_processors.nav_counts",
+                "incidents.context_processors.static_version",
             ],
         },
     },

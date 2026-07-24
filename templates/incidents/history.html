@@ -2,64 +2,84 @@
 {% load static %}
 {% block title %}History — KMC IRS{% endblock %}
 {% block content %}
-<div class="page-header page-header--center">
-  <div>
-    <h1 class="page-title">History</h1>
-    <p class="page-subtitle">{% if user.has_plant_wide_access %}Plant-wide incident history with filters and export{% else %}Incidents you reported, verified, or approved{% endif %}</p>
+<div class="history-page">
+  <div class="page-header page-header--history">
+    <h1 class="page-title page-title--history"><span class="page-title__mark">His</span>tory</h1>
   </div>
-  {% if user.can_report %}
-  <div class="page-actions">
-    <a href="{% url 'incident_create' %}" class="btn-primary">Report incident</a>
-  </div>
-  {% endif %}
+
+  <form method="get" id="incident-filters" class="panel panel--history-filters history-filters" action="{% url 'history' %}">
+    <div class="history-filters__row">
+      <div class="filter-field filter-field--search">
+        <label class="form-label form-label--compact" for="history-search">Search</label>
+        <div class="search-input-wrap">
+          <svg class="search-input-wrap__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="7"></circle>
+            <line x1="16.5" y1="16.5" x2="21" y2="21"></line>
+          </svg>
+          <input type="search" id="history-search" class="input-field input-field--compact input-field--search" placeholder="ID, location, reporter..." autocomplete="off">
+        </div>
+      </div>
+      <div class="filter-field">
+        <label class="form-label form-label--compact" for="filter-status">Status</label>
+        <select name="status" id="filter-status" class="input-field input-field--compact">
+          <option value="">All</option>
+          {% for val, label in statuses %}
+          <option value="{{ val }}" {% if filters.status == val %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="filter-field">
+        <label class="form-label form-label--compact" for="filter-severity">Severity</label>
+        <select name="severity" id="filter-severity" class="input-field input-field--compact">
+          <option value="">All</option>
+          {% for val, label in severities %}
+          <option value="{{ val }}" {% if filters.severity == val %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="filter-field filter-field--date">
+        <label class="form-label form-label--compact" for="filter-date-from">From</label>
+        <input type="date" name="date_from" id="filter-date-from" value="{{ filters.date_from }}" class="input-field input-field--compact">
+      </div>
+      <div class="filter-field filter-field--date">
+        <label class="form-label form-label--compact" for="filter-date-to">To</label>
+        <input type="date" name="date_to" id="filter-date-to" value="{{ filters.date_to }}" class="input-field input-field--compact">
+      </div>
+      <div class="filter-field filter-field--check">
+        <label class="filter-checkbox"><input type="checkbox" name="late" value="1" {% if filters.late == '1' %}checked{% endif %} class="checkbox-field"> Late</label>
+      </div>
+    </div>
+    <div class="history-filters__actions">
+      <a href="{% url 'history' %}" class="btn-secondary btn-sm btn-with-icon">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <polyline points="23 4 23 10 17 10"></polyline>
+          <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+        </svg>
+        Reset
+      </a>
+      <button type="submit" name="export" value="csv" class="btn-export btn-sm btn-with-icon">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="7 10 12 15 17 10"></polyline>
+          <line x1="12" y1="15" x2="12" y2="3"></line>
+        </svg>
+        Export
+      </button>
+    </div>
+  </form>
+
+  <section class="panel panel--history-table">
+    <div class="panel__body panel__body--flush" id="history-table-wrap">
+      {% include "incidents/_incident_table.html" with incidents=incidents table_id="history-table" table_class="data-table--dashboard data-table--history" details_arrow=True %}
+    </div>
+    <div class="panel__footer panel__footer--history">
+      {% include "incidents/_pagination.html" with page_obj=page_obj query_string=filter_query page_param="page" %}
+    </div>
+  </section>
 </div>
+{% endblock %}
 
-<form method="get" id="incident-filters" class="filter-panel" action="{% url 'history' %}">
-  <div class="filter-panel__row">
-    <div class="filter-field">
-      <label class="form-label form-label--compact" for="filter-status">Status</label>
-      <select name="status" id="filter-status" class="input-field input-field--compact">
-        <option value="">All</option>
-        {% for val, label in statuses %}
-        <option value="{{ val }}" {% if filters.status == val %}selected{% endif %}>{{ label }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <div class="filter-field">
-      <label class="form-label form-label--compact" for="filter-severity">Severity</label>
-      <select name="severity" id="filter-severity" class="input-field input-field--compact">
-        <option value="">All</option>
-        {% for val, label in severities %}
-        <option value="{{ val }}" {% if filters.severity == val %}selected{% endif %}>{{ label }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <div class="filter-field filter-field--date">
-      <label class="form-label form-label--compact" for="filter-date-from">From</label>
-      <input type="date" name="date_from" id="filter-date-from" value="{{ filters.date_from }}" class="input-field input-field--compact">
-    </div>
-    <div class="filter-field filter-field--date">
-      <label class="form-label form-label--compact" for="filter-date-to">To</label>
-      <input type="date" name="date_to" id="filter-date-to" value="{{ filters.date_to }}" class="input-field input-field--compact">
-    </div>
-    <div class="filter-field filter-field--check">
-      <label class="filter-checkbox"><input type="checkbox" name="late" value="1" {% if filters.late == '1' %}checked{% endif %} class="checkbox-field"> Late</label>
-    </div>
-    <div class="filter-field filter-field--actions">
-      <a href="{% url 'history' %}" class="btn-secondary btn-sm">Reset</a>
-      <button type="submit" name="export" value="csv" class="btn-secondary btn-sm">Export</button>
-    </div>
-  </div>
-  <p class="filter-hint">Filters apply automatically on change</p>
-</form>
-
-{% include "incidents/_pagination.html" with page_obj=page_obj query_string=filter_query page_param="page" %}
-
-<div class="form-section incident-list">
-  {% include "incidents/_incident_cards.html" %}
-</div>
-
-{% include "incidents/_pagination.html" with page_obj=page_obj query_string=filter_query page_param="page" %}
-
-<script src="{% static 'js/incident-filters.js' %}"></script>
+{% block extra_js %}
+<script src="{% static 'js/incident-filters.js' %}?v={{ static_version }}"></script>
+<script src="{% static 'js/history-search.js' %}?v={{ static_version }}"></script>
 {% endblock %}

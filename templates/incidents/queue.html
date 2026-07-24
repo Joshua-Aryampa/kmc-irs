@@ -1,30 +1,61 @@
 {% extends "base.html" %}
-{% block title %}My Queue — KMC IRS{% endblock %}
+{% load static %}
+{% block title %}Incident actions — KMC IRS{% endblock %}
 {% block content %}
-<div class="page-header">
-  <h1 class="page-title">My queue</h1>
-  <p class="page-subtitle">Incidents awaiting your action</p>
+<div class="queue-page">
+  <div class="page-header page-header--queue">
+    <h1 class="page-title page-title--queue"><span class="page-title__mark">Incident</span> actions</h1>
+  </div>
+
+  <section class="panel panel--queue-table">
+    <div class="queue-tabs" role="tablist" aria-label="Incident action filters">
+      <button type="button" class="queue-tab queue-tab--active" data-queue-tab="all" role="tab" aria-selected="true">
+        <span class="queue-tab__label">All</span>
+        <span class="queue-tab__count">{{ verify_page.paginator.count|add:approve_page.paginator.count|add:forward_page.paginator.count|add:returned_page.paginator.count }}</span>
+      </button>
+      <button type="button" class="queue-tab" data-queue-tab="verify" role="tab" aria-selected="false">
+        <span class="queue-tab__label">Pending my verification</span>
+        <span class="queue-tab__count">{{ verify_page.paginator.count }}</span>
+      </button>
+      <button type="button" class="queue-tab" data-queue-tab="approve" role="tab" aria-selected="false">
+        <span class="queue-tab__label">Pending my approval</span>
+        <span class="queue-tab__count">{{ approve_page.paginator.count }}</span>
+      </button>
+      <button type="button" class="queue-tab" data-queue-tab="forward" role="tab" aria-selected="false">
+        <span class="queue-tab__label">Returned to me (verifier)</span>
+        <span class="queue-tab__count">{{ forward_page.paginator.count }}</span>
+      </button>
+      <button type="button" class="queue-tab" data-queue-tab="returned" role="tab" aria-selected="false">
+        <span class="queue-tab__label">Returned to me (reporter)</span>
+        <span class="queue-tab__count">{{ returned_page.paginator.count }}</span>
+      </button>
+    </div>
+
+    <div class="panel__body panel__body--flush">
+      <div class="queue-panel queue-panel--active" data-queue-panel="all">
+        {% include "incidents/_queue_table.html" with incidents=all_queue_qs table_class="data-table--dashboard" details_arrow=True %}
+      </div>
+      <div class="queue-panel" data-queue-panel="verify" hidden>
+        {% include "incidents/_queue_table.html" with incidents=verify_qs table_class="data-table--dashboard" details_arrow=True %}
+        {% include "incidents/_pagination.html" with page_obj=verify_page query_string=filter_query page_param="page_verify" %}
+      </div>
+      <div class="queue-panel" data-queue-panel="approve" hidden>
+        {% include "incidents/_queue_table.html" with incidents=approve_qs table_class="data-table--dashboard" details_arrow=True %}
+        {% include "incidents/_pagination.html" with page_obj=approve_page query_string=filter_query page_param="page_approve" %}
+      </div>
+      <div class="queue-panel" data-queue-panel="forward" hidden>
+        {% include "incidents/_queue_table.html" with incidents=forward_qs table_class="data-table--dashboard" details_arrow=True %}
+        {% include "incidents/_pagination.html" with page_obj=forward_page query_string=filter_query page_param="page_forward" %}
+      </div>
+      <div class="queue-panel" data-queue-panel="returned" hidden>
+        {% include "incidents/_queue_table.html" with incidents=returned_qs table_class="data-table--dashboard" details_arrow=True %}
+        {% include "incidents/_pagination.html" with page_obj=returned_page query_string=filter_query page_param="page_returned" %}
+      </div>
+    </div>
+  </section>
 </div>
-<div class="queue-grid">
-  <section class="form-section">
-    <h2>Pending my verification ({{ verify_page.paginator.count }})</h2>
-    {% include "incidents/_queue_list.html" with items=verify_qs %}
-    {% include "incidents/_pagination.html" with page_obj=verify_page query_string=filter_query page_param="page_verify" %}
-  </section>
-  <section class="form-section">
-    <h2>Pending my approval ({{ approve_page.paginator.count }})</h2>
-    {% include "incidents/_queue_list.html" with items=approve_qs %}
-    {% include "incidents/_pagination.html" with page_obj=approve_page query_string=filter_query page_param="page_approve" %}
-  </section>
-  <section class="form-section">
-    <h2>Returned to me (verifier) ({{ forward_page.paginator.count }})</h2>
-    {% include "incidents/_queue_list.html" with items=forward_qs %}
-    {% include "incidents/_pagination.html" with page_obj=forward_page query_string=filter_query page_param="page_forward" %}
-  </section>
-  <section class="form-section">
-    <h2>Returned to me (reporter) ({{ returned_page.paginator.count }})</h2>
-    {% include "incidents/_queue_list.html" with items=returned_qs %}
-    {% include "incidents/_pagination.html" with page_obj=returned_page query_string=filter_query page_param="page_returned" %}
-  </section>
-</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/queue-tabs.js' %}?v={{ static_version }}"></script>
 {% endblock %}

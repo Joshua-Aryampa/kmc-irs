@@ -1,178 +1,251 @@
 {% extends "base.html" %}
 {% load static %}
+{% load incident_extras %}
 
 {% block title %}{{ incident.incident_id|default:"Incident" }} — KMC IRS{% endblock %}
 
 {% block content %}
-
-<div class="page-header">
-  <div>
-    <h1 class="page-title">{{ incident.incident_id|default:"Draft incident" }}</h1>
-    <p class="page-subtitle">
-      <span class="status-badge status-{{ incident.status }}">{{ incident.get_status_display }}</span>
-      {% if incident.is_late_submission %}<span style="margin-left:0.5rem;color:#b45309;font-weight:600;font-size:var(--text-sm);">Late submission</span>{% endif %}
-    </p>
-  </div>
-  <div class="page-actions">
-    {% if can_edit %}<a href="{% url 'incident_edit' incident.pk %}" class="btn-secondary">Edit report</a>{% endif %}
-    {% if can_delete %}
-    <form method="post" action="{% url 'incident_delete' incident.pk %}" class="inline-form" onsubmit="return confirm('Delete this draft incident? This cannot be undone.');">
-      {% csrf_token %}
-      <button type="submit" class="btn-secondary btn-danger-text">Delete draft</button>
-    </form>
-    {% endif %}
-    {% if incident.is_closed %}<a href="{% url 'incident_pdf' incident.pk %}" class="btn-primary">Download PDF</a>{% endif %}
-  </div>
-</div>
-
-{% if incident.return_comment and incident.status == 'RETURNED_TO_REPORTER' %}
-<div class="alert-return">{{ incident.return_comment }}</div>
-{% endif %}
-
-<div class="detail-layout">
-  <div class="detail-main">
-    <section class="form-section">
-      <h2>Report</h2>
-      <dl class="detail-dl">
-        <dt>Location</dt><dd>{{ incident.scene_location }}</dd>
-        <dt>Incident date/time</dt><dd>{{ incident.incident_date }} {{ incident.incident_time }}</dd>
-        <dt>Severity</dt><dd>{% if incident.severity %}{{ incident.get_severity_display }}{% else %}Not yet assigned{% endif %}</dd>
-        <dt>Involves</dt><dd>{{ incident.involves_labels|join:", " }}</dd>
-        <dt>Classification</dt><dd>{{ incident.classification_labels|join:", " }}</dd>
-        <dt>Reporter</dt><dd>{{ incident.reporter.full_name }}</dd>
-        <dt>Verifier</dt><dd>{{ incident.verifier.full_name|default:"—" }}</dd>
-        <dt>Approver</dt><dd>{{ incident.approver.full_name|default:"—" }}</dd>
-      </dl>
-      <div class="detail-body">
-        <div class="detail-body-block"><strong>Description</strong><p class="detail-value whitespace-pre-wrap">{{ incident.description }}</p></div>
-        <div class="detail-body-block"><strong>Possible causes</strong><p class="detail-value whitespace-pre-wrap">{{ incident.possible_causes }}</p></div>
-        <div class="detail-body-block"><strong>Corrective actions taken</strong><p class="detail-value whitespace-pre-wrap">{% if incident.corrective_actions_taken %}{{ incident.corrective_actions_taken }}{% else %}<span class="detail-empty">Not provided</span>{% endif %}</p></div>
-        <div class="detail-body-block"><strong>Immediate actions</strong><p class="detail-value whitespace-pre-wrap">{{ incident.immediate_actions }}</p></div>
-        <div class="detail-body-block"><strong>Effect of the incident</strong><p class="detail-value whitespace-pre-wrap">{{ incident.effect_on_process }}</p></div>
-        <div class="detail-body-block"><strong>Recommendations</strong><p class="detail-value whitespace-pre-wrap">{{ incident.recommendations }}</p></div>
-        {% if incident.is_late_submission %}
-        <div class="detail-body-block"><strong>Late reason</strong><p class="whitespace-pre-wrap">{{ incident.late_reason }}</p></div>
-        {% endif %}
-      </div>
-    </section>
-
-    <section class="form-section">
-      <h2>Witnesses</h2>
-      <ul class="form-stack">
-        {% for w in incident.witnesses.all %}
-        <li class="witness-item">{{ w.name }}</li>
-        {% endfor %}
-      </ul>
-    </section>
-
-    <section class="form-section">
-      <h2>Photos</h2>
-      <div class="photo-grid">
-        {% for photo in incident.photos.all %}
-        <a href="{{ photo.image.url }}" target="_blank" class="photo-thumb">
-          <img src="{{ photo.image.url }}" alt="Incident photo">
-        </a>
-        {% endfor %}
-      </div>
-    </section>
-
-    <section class="form-section">
-      <h2>Signatories</h2>
-      {% include "incidents/_signatories.html" %}
-    </section>
-  </div>
-
-  <div class="detail-sidebar">
-    {% if can_verify or can_approve or can_forward %}
-    <section class="form-section actions-panel">
-      <h2>Actions</h2>
-
-      {% if can_verify %}
-      <form method="post" action="{% url 'incident_reject_verify' incident.pk %}" class="action-form-block">{% csrf_token %}
-        <label class="form-label">Return to reporter</label>
-        {{ comment_form.comment }}
-        <button class="btn-secondary btn-block btn-danger-text" style="margin-top:0.5rem;">Reject & return to reporter</button>
+<div class="detail-page">
+  <header class="detail-topbar">
+    <a href="javascript:history.back()" class="detail-back" aria-label="Go back">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <polyline points="15 18 9 12 15 6"></polyline>
+      </svg>
+    </a>
+    <div class="detail-topbar__center">
+      <h1 class="detail-topbar__id">{{ incident.incident_id|default:"Draft incident" }}</h1>
+      {% if incident.status == 'RETURNED_TO_REPORTER' and incident.return_comment %}
+      <p class="detail-return-comment">{{ incident.return_comment }}</p>
+      {% endif %}
+    </div>
+    <div class="detail-topbar__right">
+      {% if incident.is_closed %}
+      <a href="{% url 'incident_pdf' incident.pk %}" class="btn-primary btn-sm detail-topbar__action">Download PDF</a>
+      {% elif can_edit %}
+      <a href="{% url 'incident_edit' incident.pk %}" class="btn-secondary btn-sm detail-topbar__action">Edit report</a>
+      {% endif %}
+      {% if can_delete %}
+      <form method="post" action="{% url 'incident_delete' incident.pk %}" class="detail-delete-form" onsubmit="return confirm('Delete this draft incident? This cannot be undone.');">
+        {% csrf_token %}
+        <button type="submit" class="btn-secondary btn-sm btn-danger-text detail-topbar__action">Delete draft</button>
       </form>
+      {% endif %}
+      <span class="status-badge status-{{ incident.status }}">{{ incident.status|status_label }}</span>
+    </div>
+  </header>
 
-      <form method="post" action="{% url 'incident_verify' incident.pk %}" id="verify-form" class="action-form">{% csrf_token %}
-        <label class="form-label">Severity (required before verifying)</label>
-        {{ verify_form.severity }}
-        <label class="form-label form-label--emphasis" style="margin-top:0.75rem;">Person to approve (supervisor)</label>
-        <div class="employee-search-wrap employee-search-wrap--compact">
-          {{ verify_form.approver_name }}
-          {{ verify_form.approver_keycloak_id }}
+  <div class="detail-layout">
+    <div class="detail-main">
+      <section class="panel panel--detail">
+        <div class="panel__header panel__header--detail">
+          <h2 class="panel__title panel__title--detail">Report</h2>
         </div>
-        {% if verify_form.approver_name.errors %}<p class="field-error">{{ verify_form.approver_name.errors.0 }}</p>{% endif %}
-        <p class="field-hint">Type at least 2 letters, then select from the list. Defaults to the previous approver if one was already chosen.</p>
-        <p id="severity-required-msg" class="field-error hidden">Select a severity before you can verify this report.</p>
-        <button type="submit" id="verify-btn" class="btn-primary btn-block opacity-50 cursor-not-allowed" style="margin-top:0.75rem;" disabled>Verify</button>
-      </form>
+        <div class="panel__body panel__body--detail">
+          <div class="detail-meta-grid">
+            <div class="detail-box-field">
+              <span class="detail-box-field__label">Location</span>
+              <div class="detail-box-field__value">{{ incident.scene_location }}</div>
+            </div>
+            <div class="detail-box-field">
+              <span class="detail-box-field__label">Incident date/time</span>
+              <div class="detail-box-field__value">{{ incident.incident_date|incident_date_display }}{% if incident.incident_time %} {{ incident.incident_time|time:"g:i a" }}{% endif %}</div>
+            </div>
+            <div class="detail-box-field">
+              <span class="detail-box-field__label">Severity</span>
+              <div class="detail-box-field__value">{% if incident.severity %}{{ incident.get_severity_display }}{% else %}Not yet assigned{% endif %}</div>
+            </div>
+            <div class="detail-box-field">
+              <span class="detail-box-field__label">Involves</span>
+              <div class="detail-box-field__value">{% if incident.involves_labels %}{{ incident.involves_labels|join:", " }}{% else %}—{% endif %}</div>
+            </div>
+            <div class="detail-box-field">
+              <span class="detail-box-field__label">Classification</span>
+              <div class="detail-box-field__value">{% if incident.classification_labels %}{{ incident.classification_labels|join:", " }}{% else %}—{% endif %}</div>
+            </div>
+            <div class="detail-box-field">
+              <span class="detail-box-field__label">Reporter</span>
+              <div class="detail-box-field__value">{{ incident.reporter.full_name }}</div>
+            </div>
+            <div class="detail-box-field">
+              <span class="detail-box-field__label">Verifier</span>
+              <div class="detail-box-field__value">{{ incident.verifier.full_name|default:"—" }}</div>
+            </div>
+            <div class="detail-box-field">
+              <span class="detail-box-field__label">Approver</span>
+              <div class="detail-box-field__value">{{ incident.approver.full_name|default:"—" }}</div>
+            </div>
+          </div>
 
-      <script src="{% static 'js/employee-search.js' %}"></script>
-      <script>
-        (function () {
-          const form = document.getElementById("verify-form");
-          const select = document.getElementById("verify-severity");
-          const btn = document.getElementById("verify-btn");
-          const msg = document.getElementById("severity-required-msg");
-          const approverHidden = document.getElementById("id_approver_keycloak_id");
-          if (!form || !select || !btn) return;
-          function updateState() {
-            const ok = Boolean(select.value) && Boolean(approverHidden && approverHidden.value);
-            btn.disabled = !ok;
-            btn.classList.toggle("opacity-50", !ok);
-            btn.classList.toggle("cursor-not-allowed", !ok);
-            msg.classList.toggle("hidden", Boolean(select.value));
-          }
-          select.addEventListener("change", updateState);
-          if (approverHidden) approverHidden.addEventListener("change", updateState);
-          form.addEventListener("submit", function (e) {
-            if (!select.value) {
-              e.preventDefault();
-              msg.classList.remove("hidden");
-            }
-          });
-          updateState();
-        })();
-      </script>
+          <div class="detail-narrative">
+            <div class="detail-narrative__block">
+              <span class="detail-box-field__label">Description</span>
+              <div class="detail-narrative__value whitespace-pre-wrap">{{ incident.description }}</div>
+            </div>
+            <div class="detail-narrative__block">
+              <span class="detail-box-field__label">Possible causes</span>
+              <div class="detail-narrative__value whitespace-pre-wrap">{{ incident.possible_causes }}</div>
+            </div>
+            <div class="detail-narrative__block">
+              <span class="detail-box-field__label">Corrective actions taken</span>
+              <div class="detail-narrative__value whitespace-pre-wrap">{% if incident.corrective_actions_taken %}{{ incident.corrective_actions_taken }}{% else %}<span class="detail-empty">Not provided</span>{% endif %}</div>
+            </div>
+            <div class="detail-narrative__block">
+              <span class="detail-box-field__label">Immediate actions</span>
+              <div class="detail-narrative__value whitespace-pre-wrap">{{ incident.immediate_actions }}</div>
+            </div>
+            <div class="detail-narrative__block">
+              <span class="detail-box-field__label">Effect of the incident</span>
+              <div class="detail-narrative__value whitespace-pre-wrap">{{ incident.effect_on_process }}</div>
+            </div>
+            <div class="detail-narrative__block">
+              <span class="detail-box-field__label">Recommendations</span>
+              <div class="detail-narrative__value whitespace-pre-wrap">{{ incident.recommendations }}</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel panel--detail">
+        <div class="panel__header panel__header--detail">
+          <h2 class="panel__title panel__title--detail">Witnesses</h2>
+        </div>
+        <div class="panel__body panel__body--detail">
+          <div class="witness-list">
+            {% for w in incident.witnesses.all %}
+            <span class="witness-item">{{ w.name }}</span>
+            {% empty %}
+            <p class="empty-state">No witnesses recorded.</p>
+            {% endfor %}
+          </div>
+        </div>
+      </section>
+
+      <section class="panel panel--detail">
+        <div class="panel__header panel__header--detail">
+          <h2 class="panel__title panel__title--detail">Photos</h2>
+        </div>
+        <div class="panel__body panel__body--detail">
+          <div class="photo-grid photo-grid--detail">
+            {% for photo in incident.photos.all %}
+            <a href="{{ photo.image.url }}" target="_blank" class="photo-thumb">
+              <img src="{{ photo.image.url }}" alt="Incident photo">
+            </a>
+            {% empty %}
+            <p class="empty-state">No photos attached.</p>
+            {% endfor %}
+          </div>
+        </div>
+      </section>
+
+      <section class="panel panel--detail">
+        <div class="panel__header panel__header--detail">
+          <h2 class="panel__title panel__title--detail">Signatories</h2>
+        </div>
+        <div class="panel__body panel__body--detail">
+          {% include "incidents/_signatories.html" %}
+        </div>
+      </section>
+    </div>
+
+    <aside class="detail-sidebar">
+      {% if can_verify or can_approve or can_forward %}
+      <section class="panel panel--detail actions-panel">
+        <div class="panel__header panel__header--detail">
+          <h2 class="panel__title panel__title--detail">Actions</h2>
+        </div>
+        <div class="panel__body panel__body--detail">
+          {% if can_verify %}
+          <form method="post" action="{% url 'incident_reject_verify' incident.pk %}" class="action-form-block">{% csrf_token %}
+            <label class="form-label">Return to reporter</label>
+            {{ comment_form.comment }}
+            <button class="btn-secondary btn-block btn-danger-text action-btn">Reject &amp; return to reporter</button>
+          </form>
+          <form method="post" action="{% url 'incident_verify' incident.pk %}" id="verify-form" class="action-form">{% csrf_token %}
+            <label class="form-label">Severity (required before verifying)</label>
+            {{ verify_form.severity }}
+            <label class="form-label form-label--emphasis">Person to approve (supervisor)</label>
+            <div class="employee-search-wrap employee-search-wrap--compact">
+              {{ verify_form.approver_name }}
+              {{ verify_form.approver_keycloak_id }}
+            </div>
+            {% if verify_form.approver_name.errors %}<p class="field-error">{{ verify_form.approver_name.errors.0 }}</p>{% endif %}
+            <p class="field-hint">Type at least 2 letters, then select from the list. Defaults to the previous approver if one was already chosen.</p>
+            <p id="severity-required-msg" class="field-error hidden">Select a severity before you can verify this report.</p>
+            <button type="submit" id="verify-btn" class="btn-primary btn-block action-btn" disabled>Verify</button>
+          </form>
+          {% endif %}
+          {% if can_approve %}
+          <form method="post" action="{% url 'incident_reject_approve' incident.pk %}" class="action-form-block">{% csrf_token %}
+            <label class="form-label">Return to verifier</label>
+            {{ comment_form.comment }}
+            <button class="btn-secondary btn-block btn-danger-text action-btn">Reject &amp; return to verifier</button>
+          </form>
+          <form method="post" action="{% url 'incident_approve' incident.pk %}" class="action-form">{% csrf_token %}
+            <button class="btn-primary btn-block action-btn">Approve &amp; close</button>
+          </form>
+          {% endif %}
+          {% if can_forward %}
+          <form method="post" action="{% url 'incident_forward' incident.pk %}" class="action-form">{% csrf_token %}
+            {{ forward_form.comment }}
+            <button class="btn-secondary btn-block action-btn">Forward to reporter with comment</button>
+          </form>
+          {% endif %}
+        </div>
+      </section>
       {% endif %}
 
-      {% if can_approve %}
-      <form method="post" action="{% url 'incident_reject_approve' incident.pk %}" class="action-form-block">{% csrf_token %}
-        <label class="form-label">Return to verifier</label>
-        {{ comment_form.comment }}
-        <button class="btn-secondary btn-block btn-danger-text" style="margin-top:0.5rem;">Reject & return to verifier</button>
-      </form>
-
-      <form method="post" action="{% url 'incident_approve' incident.pk %}" class="action-form">{% csrf_token %}
-        <button class="btn-primary btn-block">Approve & close</button>
-      </form>
-      {% endif %}
-
-      {% if can_forward %}
-      <form method="post" action="{% url 'incident_forward' incident.pk %}" class="action-form">{% csrf_token %}
-        {{ forward_form.comment }}
-        <button class="btn-secondary btn-block" style="margin-top:0.5rem;">Forward to reporter with comment</button>
-      </form>
-      {% endif %}
-    </section>
-    {% endif %}
-
-    <section class="form-section">
-      <h2>Timeline</h2>
-      <ul class="timeline-list">
-        {% for entry in timeline %}
-        <li class="timeline-item">
-          <div class="timeline-meta">{{ entry.created_at|date:"d M Y H:i" }}</div>
-          <div class="timeline-title">{{ entry.get_entry_type_display }}{% if entry.actor %} · {{ entry.actor.full_name }}{% endif %}</div>
-          {% if entry.message %}<p class="timeline-message whitespace-pre-wrap">{{ entry.message }}</p>{% endif %}
-        </li>
-        {% empty %}
-        <li class="empty-state">No timeline entries yet.</li>
-        {% endfor %}
-      </ul>
-    </section>
+      <section class="panel panel--detail">
+        <div class="panel__header panel__header--detail">
+          <h2 class="panel__title panel__title--detail">Timeline</h2>
+        </div>
+        <div class="panel__body panel__body--detail">
+          <ul class="timeline-list timeline-list--detail">
+            {% for entry in timeline %}
+            <li class="timeline-item">
+              <div class="timeline-meta">{{ entry.created_at|date:"d M Y H:i" }}</div>
+              <div class="timeline-title">{{ entry.get_entry_type_display }}{% if entry.actor %} · {{ entry.actor.full_name }}{% endif %}</div>
+              {% if entry.message %}<p class="timeline-message whitespace-pre-wrap">{{ entry.message }}</p>{% endif %}
+            </li>
+            {% empty %}
+            <li class="empty-state">No timeline entries yet.</li>
+            {% endfor %}
+          </ul>
+        </div>
+      </section>
+    </aside>
   </div>
 </div>
+{% endblock %}
 
+{% block extra_js %}
+{% if can_verify %}
+<script src="{% static 'js/employee-search.js' %}?v={{ static_version }}"></script>
+<script>
+  (function () {
+    const form = document.getElementById("verify-form");
+    const select = document.getElementById("verify-severity");
+    const btn = document.getElementById("verify-btn");
+    const msg = document.getElementById("severity-required-msg");
+    const approverHidden = document.getElementById("id_approver_keycloak_id");
+    if (!form || !select || !btn) return;
+    function updateState() {
+      const ok = Boolean(select.value) && Boolean(approverHidden && approverHidden.value);
+      btn.disabled = !ok;
+      msg.classList.toggle("hidden", Boolean(select.value));
+    }
+    select.addEventListener("change", updateState);
+    if (approverHidden) approverHidden.addEventListener("change", updateState);
+    form.addEventListener("submit", function (e) {
+      if (!select.value) {
+        e.preventDefault();
+        msg.classList.remove("hidden");
+      }
+    });
+    if (!select.value) {
+      msg.classList.remove("hidden");
+    }
+    updateState();
+  })();
+</script>
+{% endif %}
 {% endblock %}

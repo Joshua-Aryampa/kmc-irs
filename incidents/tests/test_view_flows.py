@@ -32,15 +32,29 @@ class IncidentViewFlowTests(TestCase):
         self.assertContains(response, "Sign in")
 
     def test_queue_page_lists_assigned_items(self):
-        make_incident(
+        incident = make_incident(
             self.reporter,
             status=IncidentStatus.PENDING_VERIFICATION,
             verifier=self.verifier,
+            incident_id="0726099",
         )
         self._login("verifier")
         response = self.client.get("/queue/")
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Pending my verification")
+        self.assertContains(response, "0726099")
+
+    def test_queue_all_tab_lists_items_with_unrelated_page_param(self):
+        incident = make_incident(
+            self.reporter,
+            status=IncidentStatus.PENDING_VERIFICATION,
+            verifier=self.verifier,
+            incident_id="0726100",
+        )
+        self._login("verifier")
+        response = self.client.get("/queue/?page_verify=99")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "0726100")
 
     def test_history_page_and_filters(self):
         make_incident(

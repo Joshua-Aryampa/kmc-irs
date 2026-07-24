@@ -120,6 +120,12 @@ def my_queue(request):
             "approve_qs": queue_pages["approve"].object_list,
             "forward_qs": queue_pages["forward"].object_list,
             "returned_qs": queue_pages["returned"].object_list,
+            "all_queue_qs": (
+                list(queue_pages["verify"].object_list)
+                + list(queue_pages["approve"].object_list)
+                + list(queue_pages["forward"].object_list)
+                + list(queue_pages["returned"].object_list)
+            ),
             "filter_query": shared_query,
         },
     )
