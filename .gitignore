@@ -32,3 +32,10 @@ htmlcov/
 # OS
 Thumbs.db
 .DS_Store
+
+# Dev-only artefacts (do not deploy)
+_template.zip
+_template.docx
+docs/slide_content.txt
+docs/*.pptx
+scripts/build_presentation.py

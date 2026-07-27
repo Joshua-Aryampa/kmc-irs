@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 
+from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -10,6 +11,19 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.getenv("SECRET_KEY", "dev-only-insecure-change-in-production")
 DEBUG = os.getenv("DEBUG", "True").lower() in ("1", "true", "yes")
 ALLOWED_HOSTS = [h.strip() for h in os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",") if h.strip()]
+
+if not DEBUG and SECRET_KEY == "dev-only-insecure-change-in-production":
+    raise ImproperlyConfigured("Set a strong SECRET_KEY in production.")
+
+_CONTEXT_PROCESSORS = [
+    "django.template.context_processors.request",
+    "django.contrib.auth.context_processors.auth",
+    "django.contrib.messages.context_processors.messages",
+    "incidents.context_processors.nav_counts",
+    "incidents.context_processors.static_version",
+]
+if DEBUG:
+    _CONTEXT_PROCESSORS.insert(0, "django.template.context_processors.debug")
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -41,14 +55,7 @@ TEMPLATES = [
         "DIRS": [BASE_DIR / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
-            "context_processors": [
-                "django.template.context_processors.debug",
-                "django.template.context_processors.request",
-                "django.contrib.auth.context_processors.auth",
-                "django.contrib.messages.context_processors.messages",
-                "incidents.context_processors.nav_counts",
-                "incidents.context_processors.static_version",
-            ],
+            "context_processors": _CONTEXT_PROCESSORS,
         },
     },
 ]
@@ -176,3 +183,18 @@ INCIDENT_LIST_PAGE_SIZE = 20
 DASHBOARD_RECENT_COUNT = 4
 
 FILE_UPLOAD_MAX_MEMORY_SIZE = INCIDENT_MAX_PHOTO_BYTES * INCIDENT_MAX_PHOTOS
+
+if not DEBUG:
+    SECURE_SSL_REDIRECT = os.getenv("SECURE_SSL_REDIRECT", "True").lower() in ("1", "true", "yes")
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SESSION_COOKIE_HTTPONLY = True
+    CSRF_COOKIE_HTTPONLY = True
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    SECURE_HSTS_SECONDS = int(os.getenv("SECURE_HSTS_SECONDS", "31536000"))
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = os.getenv("SECURE_HSTS_PRELOAD", "False").lower() in ("1", "true", "yes")
+    X_FRAME_OPTIONS = "DENY"
+    SECURE_REFERRER_POLICY = "same-origin"

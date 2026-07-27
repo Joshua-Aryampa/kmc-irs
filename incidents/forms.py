@@ -467,6 +467,8 @@ class PhotoUploadForm(forms.Form):
 
 
 def validate_photo_uploads(files, existing_count=0):
+    from PIL import Image
+
     photos = files
     if existing_count + len(photos) == 0:
         raise forms.ValidationError("At least one photo is required before you can submit the report.")
@@ -477,4 +479,11 @@ def validate_photo_uploads(files, existing_count=0):
             raise forms.ValidationError(f'"{photo.name}" exceeds the 5 MB size limit.')
         if photo.content_type not in settings.ALLOWED_PHOTO_TYPES:
             raise forms.ValidationError(f'"{photo.name}" must be a JPEG, PNG, or WEBP image.')
+        try:
+            image = Image.open(photo)
+            image.verify()
+        except Exception as exc:
+            raise forms.ValidationError(f'"{photo.name}" is not a valid image file.') from exc
+        finally:
+            photo.seek(0)
     return photos

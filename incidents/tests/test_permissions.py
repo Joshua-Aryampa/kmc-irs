@@ -3,7 +3,6 @@ from django.test import TestCase
 from accounts.models import Role
 from incidents.models import IncidentStatus
 from incidents.permissions import (
-    actionable_incidents_for_user,
     incidents_for_user,
     queue_counts,
     user_can_view_incident,
@@ -71,3 +70,26 @@ class PermissionTests(TestCase):
         counts = queue_counts(self.verifier)
         self.assertEqual(counts["queue_verify"], 1)
         self.assertEqual(counts["queue_approve"], 0)
+
+    def test_queue_counts_forward_and_returned(self):
+        make_incident(
+            self.reporter,
+            status=IncidentStatus.RETURNED_TO_VERIFIER,
+            verifier=self.verifier,
+        )
+        make_incident(
+            self.reporter,
+            status=IncidentStatus.RETURNED_TO_REPORTER,
+            verifier=self.verifier,
+        )
+        verifier_counts = queue_counts(self.verifier)
+        reporter_counts = queue_counts(self.reporter)
+        self.assertEqual(verifier_counts["queue_forward"], 1)
+        self.assertEqual(reporter_counts["queue_returned"], 1)
+        self.assertEqual(
+            verifier_counts["queue_total"],
+            verifier_counts["queue_verify"]
+            + verifier_counts["queue_approve"]
+            + verifier_counts["queue_forward"]
+            + verifier_counts["queue_returned"],
+        )

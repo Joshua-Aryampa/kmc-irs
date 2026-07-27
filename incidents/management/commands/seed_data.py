@@ -1,6 +1,7 @@
 import os
 
-from django.core.management.base import BaseCommand
+from django.conf import settings
+from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
 
 from accounts.models import Role, User
@@ -32,6 +33,8 @@ class Command(BaseCommand):
     help = "Seed demo users and incident sequence for local development (without Keycloak)."
 
     def handle(self, *args, **options):
+        if settings.KEYCLOAK_SERVER_URL and not settings.DEBUG:
+            raise CommandError("seed_data is for local development only. Do not run in production.")
         now = timezone.localdate()
         period = f"{now.year:04d}{now.month:02d}"
         IncidentSequence.objects.get_or_create(period=period, defaults={"last_sequence": 0})
